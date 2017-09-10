@@ -13,26 +13,22 @@ manager = Manager()
 img_count = manager.Value("d", 0)
 
 
-def fetch_image(url):
+def fetch_image(url, filename):
     # open the page that contains the image
     img_html = requests.get(url, headers=headers)
     img_soup = bs(img_html.text, 'lxml')
     img_url = img_soup.find("div", class_="artwork").find("img")["src"]
-    img_title = img_soup.find("h1").text[:-1].replace(" ", "-")
 
     # download the image
-    filename = img_title + ".jpg"
-    if not Path(filename).is_file():
-        img_data = requests.get(img_url, headers=headers)
-        with open(filename, "ab") as f:
-            f.write(img_data.content)
-            img_count.value += 1
-            print("No.%d %s" % (img_count.value, img_title))
+    img_data = requests.get(img_url, headers=headers)
+    with open(filename, "ab") as f:
+        f.write(img_data.content)
+        img_count.value += 1
+        print("No.%d %s" % (img_count.value, filename[:-4]))
 
 
-def main():
+def main(directory):
     # specify directory to store paintings
-    directory = "/Users/lun/Desktop/ProjectX/paintings/"
     if not os.path.exists(directory):
         os.makedirs(directory)
     os.chdir(directory)
@@ -46,10 +42,17 @@ def main():
     # download paintings
     pool = Pool()
     for li in all_li:
-        pool.apply_async(fetch_image, args=(li.find("a")["href"], ))
+        title = li.find("span", class_="title")
+        # remove the date info if necessary
+        if title.find("span", class_="date"):
+            title.find("span", class_="date").extract()
+        filename = title.get_text().strip().replace(" ", "-") + ".jpg"
+        # only download those not in the directory
+        if not Path(filename).is_file():
+            pool.apply_async(fetch_image, args=(li.find("a")["href"], filename))
     pool.close()
     pool.join()
 
 
 if __name__ == "__main__":
-    main()
+    main("/Users/lun/Desktop/ProjectX/paintings/")
