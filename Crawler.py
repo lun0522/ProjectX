@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from multiprocessing import Pool, Manager
 import os
 from Detector import detect
-from DBHandler import bbox_did_exist
+import DBHandler
 
 default_directory = "/Users/lun/Desktop/ProjectX/paintings/"
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
@@ -11,20 +11,24 @@ headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "Chrome/22.0.1207.1 Safari/537.1"}
 
 
-def parse_url(url):
-    return BeautifulSoup(requests.get(url, headers=headers).text, "lxml")
+def parse_url(url, timeout=10):
+    return BeautifulSoup(requests.get(url, headers=headers, timeout=timeout).text, "lxml")
 
 
 def fetch_image(url, title, filename, count):
-    # download the image
-    img_url = parse_url(url).find("div", class_="artwork").find("img")["src"]
-    img_data = requests.get(img_url, headers=headers)
+    try:
+        # download the image
+        img_url = parse_url(url).find("div", class_="artwork").find("img")["src"]
+        img_data = requests.get(img_url, headers=headers)
 
-    # store the image
-    with open(filename, "wb") as f:
-        f.write(img_data.content)
-        count.value += 1
-        print("No.{count} {title}".format(count=count.value, title=title))
+        # store the image
+        with open(filename, "wb") as f:
+            f.write(img_data.content)
+            count.value += 1
+            print("No.{count} {title}".format(count=count.value, title=title))
+
+    except requests.exceptions.Timeout:
+        print("Timeout when download: {}".format(title))
 
 
 def crawl(directory=default_directory, max_storage=1000):
@@ -52,13 +56,10 @@ def crawl(directory=default_directory, max_storage=1000):
                 title_info.find("span", class_="date").extract()
 
             # title should not be longer than 50 characters
-            title = title_info.get_text().strip()
-            if len(title) > 50:
-                title = title[0:50]
-            filename = title.replace(" ", "_") + ".jpg"
+            title, filename = DBHandler.title_to_filename(title_info.get_text().strip())
 
             # only download those haven't been done face detection
-            if not bbox_did_exist(title):
+            if not DBHandler.bbox_did_exist(title):
                 pool.apply_async(fetch_image, args=(url, title, filename, count))
             else:
                 print("Already exists: {}".format(title))

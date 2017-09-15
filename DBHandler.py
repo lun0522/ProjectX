@@ -1,4 +1,5 @@
 import mysql.connector
+import re
 
 cnx = mysql.connector.connect(user='root',
                               password='password',
@@ -15,6 +16,18 @@ add_no_face = ("INSERT INTO bounding_box"
 query_bbox = ("SELECT has_face "
               "FROM bounding_box "
               "WHERE title=%s")
+
+
+def title_to_filename(title):
+    # any non-alphanumeric character will be replaced
+    title = re.sub('[^0-9a-zA-Z]+', ' ', title)
+    if len(title) > 50:
+        title = title[0:50]
+    return title, title.replace(" ", "_") + ".jpg"
+
+
+def filename_to_title(filename):
+    return filename[0:-4].replace("_", " ")
 
 
 def store_bounding_box(title, xlo, xhi, ylo, yhi):

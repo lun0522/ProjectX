@@ -15,6 +15,7 @@ def change_directory(directory=default_directory):
         exit(0)
     os.chdir(directory)
 
+
 def detect_face(img):
     bbox_list = detector(img, 1)
     return [bbox for num, bbox in enumerate(bbox_list)]
@@ -23,13 +24,16 @@ def detect_face(img):
 def double_check(directory=default_directory):
     change_directory(directory)
 
-    # check whether any image with no face is still stored in the disk
     try:
+        # check whether any image with no face is still stored in the disk
         for img_file in glob.glob("*.jpg"):
-            title = img_file[0:-4].replace("_", " ")
+            title = DBHandler.filename_to_title(img_file)
             if not DBHandler.bbox_has_face(title):
                 print("Has no face but is still in disk: {}".format(title))
                 os.remove(img_file)
+
+        print("Double check finished.")
+
     except mysql.connector.Error as err:
         print("Error in double check: {}".format(err.msg))
 
@@ -47,7 +51,7 @@ def detect(directory=default_directory, do_double_check=True):
                 continue
 
             # only process those haven't any record in the database
-            title = img_file[0:-4].replace("_", " ")
+            title = DBHandler.filename_to_title(img_file)
             if not DBHandler.bbox_did_exist(title):
                 img_data = io.imread(img_file)
 
@@ -69,6 +73,8 @@ def detect(directory=default_directory, do_double_check=True):
                         DBHandler.store_bounding_box(
                             title, bbox.left(), bbox.right(),
                             bbox.bottom(), bbox.top())
+
+        print("Detection finished.")
 
     except mysql.connector.Error as err:
         print("Error in MySQL: {}".format(err))
