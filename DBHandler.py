@@ -12,7 +12,7 @@ add_bbox = ("INSERT INTO bounding_box"
 add_no_face = ("INSERT INTO bounding_box"
             "(title, has_face)"
             "VALUES (%s, %s)")
-query_bbox = ("SELECT id "
+query_bbox = ("SELECT has_face "
               "FROM bounding_box "
               "WHERE title=%s")
 
@@ -28,6 +28,16 @@ def denote_no_face(title):
 def bbox_did_exist(title):
     cursor.execute(query_bbox, (title, ))
     return cursor.rowcount
+
+
+def bbox_has_face(title):
+    cursor.execute(query_bbox, (title,))
+    if cursor.rowcount > 1:
+        return True
+    elif cursor.rowcount == 1:
+        return [has_face for (has_face, ) in cursor][0]
+    else:
+        raise mysql.connector.Error(msg="{} does not exist in the database!".format(title))
 
 
 def commit_change():

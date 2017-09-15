@@ -27,7 +27,7 @@ def fetch_image(url, title, filename, count):
         print("No.{count} {title}".format(count=count.value, title=title))
 
 
-def crawl(directory=default_directory, max_storage=200):
+def crawl(directory=default_directory, max_storage=1000):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -38,34 +38,41 @@ def crawl(directory=default_directory, max_storage=200):
     grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid//page/" + str(max_page))
     all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
 
-    # download paintings
-    pool = Pool()
-    count = Manager().Value("d", 0)
+    try:
+        # download paintings
+        pool = Pool()
+        count = Manager().Value("d", 0)
 
-    for li in all_li:
-        url = li.find("a")["href"]
-        title_info = li.find("span", class_="title")
+        for li in all_li:
+            url = li.find("a")["href"]
+            title_info = li.find("span", class_="title")
 
-        # remove the date info if necessary
-        if title_info.find("span", class_="date"):
-            title_info.find("span", class_="date").extract()
+            # remove the date info if necessary
+            if title_info.find("span", class_="date"):
+                title_info.find("span", class_="date").extract()
 
-        # title should not be longer than 50 characters
-        title = title_info.get_text().strip()
-        if len(title) > 50:
-            title = title[0:50]
-        filename = title.replace(" ", "-") + ".jpg"
+            # title should not be longer than 50 characters
+            title = title_info.get_text().strip()
+            if len(title) > 50:
+                title = title[0:50]
+            filename = title.replace(" ", "_") + ".jpg"
 
-        # only download those haven't been done face detection
-        if not bbox_did_exist(title):
-            pool.apply_async(fetch_image, args=(url, title, filename, count))
-        else:
-            print("Already exists: {}".format(title))
+            # only download those haven't been done face detection
+            if not bbox_did_exist(title):
+                pool.apply_async(fetch_image, args=(url, title, filename, count))
+            else:
+                print("Already exists: {}".format(title))
 
-    pool.close()
-    pool.join()
+        pool.close()
+        pool.join()
+        print("Download finished.")
+
+    except Exception as e:
+        print("Error in download: {}".format(e))
+
+    finally:
+        detect(directory)
 
 
 if __name__ == "__main__":
     crawl()
-    detect()

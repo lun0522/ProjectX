@@ -8,22 +8,46 @@ default_directory = "/Users/lun/Desktop/ProjectX/paintings/"
 detector = dlib.get_frontal_face_detector()
 
 
-def detect_face(img):
-    bbox_list = detector(img, 1)
-    return [bbox for num, bbox in enumerate(bbox_list)]
-
-
-def detect(directory=default_directory):
+def change_directory(directory=default_directory):
     # specify directory where stores paintings
     if not os.path.exists(directory):
         print("Wrong directory!")
         exit(0)
     os.chdir(directory)
 
+def detect_face(img):
+    bbox_list = detector(img, 1)
+    return [bbox for num, bbox in enumerate(bbox_list)]
+
+
+def double_check(directory=default_directory):
+    change_directory(directory)
+
+    # check whether any image with no face is still stored in the disk
     try:
         for img_file in glob.glob("*.jpg"):
+            title = img_file[0:-4].replace("_", " ")
+            if not DBHandler.bbox_has_face(title):
+                print("Has no face but is still in disk: {}".format(title))
+                os.remove(img_file)
+    except mysql.connector.Error as err:
+        print("Error in double check: {}".format(err.msg))
+
+
+def detect(directory=default_directory, do_double_check=True):
+    change_directory(directory)
+
+    try:
+        for img_file in glob.glob("*.jpg"):
+            # some images are downloaded, but have invalid file size
+            # those < 1KB will be deleted
+            if os.path.getsize(img_file) < 1024:
+                print("Invalid file size: {}".format(img_file))
+                os.remove(img_file)
+                continue
+
             # only process those haven't any record in the database
-            title = img_file[0:-4].replace("-", " ")
+            title = img_file[0:-4].replace("_", " ")
             if not DBHandler.bbox_did_exist(title):
                 img_data = io.imread(img_file)
 
@@ -33,7 +57,7 @@ def detect(directory=default_directory):
                 # if no face, denote the title of image as "not having face"
                 # and delete this image
                 if not len(faces):
-                    print("No face in {}".format(title))
+                    print("No face found in {}".format(title))
                     DBHandler.denote_no_face(title)
                     os.remove(img_file)
 
@@ -49,9 +73,11 @@ def detect(directory=default_directory):
     except mysql.connector.Error as err:
         print("Error in MySQL: {}".format(err))
 
-    # ensure to save all changes
+    # ensure to save all changes and do double check if necessary
     finally:
         DBHandler.commit_change()
+        if do_double_check:
+            double_check(directory)
 
 
 if __name__ == "__main__":
