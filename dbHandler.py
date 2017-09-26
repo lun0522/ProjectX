@@ -20,7 +20,7 @@ query_bbox = ("SELECT has_face "
 
 def title_to_filename(title):
     # any non-alphanumeric character will be replaced
-    title = re.sub('[^0-9a-zA-Z]+', ' ', title)
+    title = re.sub('[^0-9a-zA-Z]+', ' ', title.strip())
     if len(title) > 50:
         title = title[0:50]
     return title, title.replace(" ", "_") + ".jpg"

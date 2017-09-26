@@ -1,6 +1,6 @@
 import dlib
 import os, glob
-import DBHandler
+import dbHandler
 from skimage import io
 import mysql.connector
 
@@ -27,8 +27,8 @@ def double_check(directory=default_directory):
     try:
         # check whether any image with no face is still stored in the disk
         for img_file in glob.glob("*.jpg"):
-            title = DBHandler.filename_to_title(img_file)
-            if not DBHandler.bbox_has_face(title):
+            title = dbHandler.filename_to_title(img_file)
+            if not dbHandler.bbox_has_face(title):
                 print("Has no face but is still in disk: {}".format(title))
                 os.remove(img_file)
 
@@ -51,8 +51,8 @@ def detect(directory=default_directory, do_double_check=True):
                 continue
 
             # only process those haven't any record in the database
-            title = DBHandler.filename_to_title(img_file)
-            if not DBHandler.bbox_did_exist(title):
+            title = dbHandler.filename_to_title(img_file)
+            if not dbHandler.bbox_did_exist(title):
                 img_data = io.imread(img_file)
 
                 # da face detection
@@ -62,7 +62,7 @@ def detect(directory=default_directory, do_double_check=True):
                 # and delete this image
                 if not len(faces):
                     print("No face found in {}".format(title))
-                    DBHandler.denote_no_face(title)
+                    dbHandler.denote_no_face(title)
                     os.remove(img_file)
 
                 # if any face is detected, store its bounding box
@@ -70,18 +70,19 @@ def detect(directory=default_directory, do_double_check=True):
                     print("Found {face_count} face(s) in {img_title}".format(
                         face_count=len(faces), img_title=title))
                     for idx, bbox in enumerate(faces):
-                        DBHandler.store_bounding_box(
+                        dbHandler.store_bounding_box(
                             title, bbox.left(), bbox.right(),
                             bbox.bottom(), bbox.top())
 
         print("Detection finished.")
+        dbHandler.cleanup()
 
     except mysql.connector.Error as err:
         print("Error in MySQL: {}".format(err))
 
     # ensure to save all changes and do double check if necessary
     finally:
-        DBHandler.commit_change()
+        dbHandler.commit_change()
         if do_double_check:
             double_check(directory)
 
