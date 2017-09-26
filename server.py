@@ -9,11 +9,13 @@ import dlib
 import datetime
 import os
 import socket
+from zeroconf import ServiceInfo, Zeroconf
 
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
 authenticationString = "PortableEmotionAnalysis"
+identityString = "PEAServer"
 temp_dir = "/Users/lun/Desktop/ProjectX/temp/"
 predictor_path = "/Users/lun/Desktop/ProjectX/shape_predictor_68_face_landmarks.dat"
 
@@ -84,7 +86,16 @@ class MyServer(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     myServer = HTTPServer((hostName, hostPort), MyServer)
-    print_with_date("Server starts - {}:{}".format(get_ip_address(), hostPort))
+    ip = get_ip_address()
+    print_with_date("Server starts - {}:{}".format(ip, hostPort))
+
+    txtRecord = {"Identity": identityString,
+                 "Address": "{}:{}".format(ip, hostPort)}
+    info = ServiceInfo("_demox._tcp.local.", "server._demox._tcp.local.",
+                       socket.inet_aton(ip), 0, properties=txtRecord)
+    zeroconf = Zeroconf()
+    zeroconf.register_service(info)
+    print_with_date("Multicast service registered - {}".format(txtRecord))
 
     try:
         myServer.serve_forever()
@@ -92,4 +103,8 @@ if __name__ == "__main__":
         pass
 
     myServer.server_close()
-    print_with_date("Server stops - {}:{}".format(get_ip_address(), hostPort))
+    print_with_date("Server stops - {}:{}".format(ip, hostPort))
+
+    zeroconf.unregister_service(info)
+    zeroconf.close()
+    print_with_date("Multicast service unregistered - {}".format(txtRecord))
