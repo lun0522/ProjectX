@@ -30,21 +30,9 @@ def get_ip_address():
 
 
 def detect_face_landmark(img):
-    start = time.time()
-    bbox_list = detector(img, 1)
-    print_with_date("face detection: {:.3f}s".format(time.time() - start))
-    start = time.time()
-    if not len(bbox_list):
-        print_with_date("No face found")
-        return None
-    else:
-        print_with_date("{} face(s) found".format(len(bbox_list)))
-        result = []
-        for num, bbox in enumerate(bbox_list):
-            shape = predictor(img, bbox)
-            result.append([(point.x, point.y) for point in shape.parts()])
-        print_with_date("landmark detection: {:.3f}s".format(time.time() - start))
-        return result
+    bounding_box = dlib.rectangle(0, 0, img.shape[1], img.shape[0])
+    landmark_points = predictor(img, bounding_box)
+    return [(point.x, point.y) for point in landmark_points.parts()]
 
 
 class MyServer(BaseHTTPRequestHandler):
@@ -55,8 +43,9 @@ class MyServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        start = time.time()
+        start_time = time.time()
         print_with_date("Receive a request")
+
         self._set_headers()
         if "Authentication" in self.headers:
             if self.headers["Authentication"] == authenticationString:
@@ -64,15 +53,15 @@ class MyServer(BaseHTTPRequestHandler):
 
                 content_length = int(self.headers['Content-Length'])
                 img = Image.open(BytesIO(self.rfile.read(content_length)))
-                print_with_date("read: {:.3f}s".format(time.time() - start))
 
                 print_with_date("Start to process image")
                 landmarks = detect_face_landmark(np.array(img))
 
                 response = {"landmarks": landmarks}
                 self.wfile.write(bytes(json.dumps(response), encoding="utf-8"))
+
                 print_with_date("Response sent")
-                print_with_date("total: {:.3f}s".format(time.time() - start))
+                print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
             else:
                 print_with_date("Request is not authenticated")
         else:
@@ -90,16 +79,16 @@ if __name__ == "__main__":
                        socket.inet_aton(ip), 0, properties=txtRecord)
     zeroconf = Zeroconf()
     zeroconf.register_service(info)
-    print_with_date("Multicast service registered - {}".format(txtRecord))
+    print_with_date("Multi-cast service registered - {}".format(txtRecord))
 
     try:
         myServer.serve_forever()
     except KeyboardInterrupt:
-        pass
+        print_with_date("Keyboard interrupt")
 
     myServer.server_close()
     print_with_date("Server stops - {}:{}".format(ip, hostPort))
 
     zeroconf.unregister_service(info)
     zeroconf.close()
-    print_with_date("Multicast service unregistered - {}".format(txtRecord))
+    print_with_date("Multi-cast service unregistered - {}".format(txtRecord))
