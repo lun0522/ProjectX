@@ -46,6 +46,10 @@ query_bbox = ("SELECT has_face "
               "WHERE title=%s")
 
 
+query_landmarks = ("SELECT title, points "
+                   "FROM landmarks ")
+
+
 def title_to_filename(title):
     # any non-alphanumeric character will be replaced
     title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
@@ -83,6 +87,14 @@ def bbox_has_face(title):
         return [has_face for (has_face, ) in cursor][0]
     else:
         raise mysql.connector.Error(msg="{} does not exist in the database!".format(title))
+
+
+def get_all_landmarks():
+    result = []
+    cursor.execute(query_landmarks)
+    for title, points in cursor:
+        result.append((title_to_filename(title)[1], json.loads(points)))
+    return result
 
 
 def commit_change():

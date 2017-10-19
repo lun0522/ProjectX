@@ -7,8 +7,9 @@ def compare(x, y):
     return np.sqrt(np.square(x[0] - y[0]) + np.square(x[1] - y[1]))
 
 
-X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
-neighbors = NN(n_neighbors=2, metric=compare).fit(X)
-distances, indices = neighbors.kneighbors(X)
+all_landmarks = np.array(dbHandler.get_all_landmarks())
+neighbors = NN(n_neighbors=2, metric=compare).fit(all_landmarks)
+distances, indices = neighbors.kneighbors(all_landmarks)
+
 print(distances)
 print(indices)

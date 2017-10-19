@@ -29,9 +29,10 @@ def create_rect(xlo, ylo, xhi, yhi):
     return dlib.rectangle(xlo, ylo, xhi, yhi)
 
 
-def detect_face_landmark(img, bbox):
-    landmark_points = predictor(img, bbox)
-    return [(point.x, point.y) for point in landmark_points.parts()]
+def detect_face_landmark(img, bbox, scale_x=1.0, scale_y=1.0):
+    return [((point.x - bbox.left()) * scale_x,
+             (point.y - bbox.top()) * scale_y)
+            for point in predictor(img, bbox).parts()]
 
 
 def double_check(directory=default_directory):
@@ -87,7 +88,9 @@ def detect(directory=default_directory, do_double_check=True):
                             title, bbox.left(), bbox.right(),
                             bbox.bottom(), bbox.top())
 
-                        landmarks = detect_face_landmark(img_data, bbox)
+                        scale_x = 100.0 / (bbox.right() - bbox.left())
+                        scale_y = 100.0 / (bbox.bottom() - bbox.top())
+                        landmarks = detect_face_landmark(img_data, bbox, scale_x, scale_y)
                         dbHandler.store_landmarks(title, landmarks[17:])
 
         print("Detection finished.")
