@@ -21,8 +21,7 @@ def change_directory(directory=default_directory):
 
 
 def detect_face(img):
-    bbox_list = detector(img, 1)
-    return [bbox for num, bbox in enumerate(bbox_list)]
+    return [bbox for num, bbox in enumerate(detector(img, 1))]
 
 
 def create_rect(xlo, ylo, xhi, yhi):

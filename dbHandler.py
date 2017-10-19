@@ -52,10 +52,10 @@ query_landmarks = ("SELECT title, points "
 
 def title_to_filename(title):
     # any non-alphanumeric character will be replaced
-    title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
+    title = re.sub("[^0-9a-zA-Z]+", " ", title.strip())
     if len(title) > 50:
         title = title[0:50]
-    return title, title.replace(" ", "_") + ".jpg"
+    return title, title.strip().replace(" ", "_") + ".jpg"
 
 
 def filename_to_title(filename):
@@ -90,11 +90,8 @@ def bbox_has_face(title):
 
 
 def get_all_landmarks():
-    result = []
     cursor.execute(query_landmarks)
-    for title, points in cursor:
-        result.append((title_to_filename(title)[1], json.loads(points)))
-    return result
+    return [(title_to_filename(title)[1], json.loads(points)) for title, points in cursor]
 
 
 def commit_change():
