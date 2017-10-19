@@ -1,11 +1,15 @@
 import dlib
-import os, glob
+import os
+import glob
 import dbHandler
 from skimage import io
 import mysql.connector
 
 default_directory = "/Users/lun/Desktop/ProjectX/paintings/"
+predictor_path = "/Users/lun/Desktop/ProjectX/shape_predictor_68_face_landmarks.dat"
+
 detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(predictor_path)
 
 
 def change_directory(directory=default_directory):
@@ -19,6 +23,15 @@ def change_directory(directory=default_directory):
 def detect_face(img):
     bbox_list = detector(img, 1)
     return [bbox for num, bbox in enumerate(bbox_list)]
+
+
+def create_rect(xlo, ylo, xhi, yhi):
+    return dlib.rectangle(xlo, ylo, xhi, yhi)
+
+
+def detect_face_landmark(img, bbox):
+    landmark_points = predictor(img, bbox)
+    return [(point.x, point.y) for point in landmark_points.parts()]
 
 
 def double_check(directory=default_directory):
@@ -74,17 +87,21 @@ def detect(directory=default_directory, do_double_check=True):
                             title, bbox.left(), bbox.right(),
                             bbox.bottom(), bbox.top())
 
+                        landmarks = detect_face_landmark(img_data, bbox)
+                        dbHandler.store_landmarks(title, landmarks[17:])
+
         print("Detection finished.")
-        dbHandler.cleanup()
 
     except mysql.connector.Error as err:
         print("Error in MySQL: {}".format(err))
 
     # ensure to save all changes and do double check if necessary
     finally:
-        dbHandler.commit_change()
         if do_double_check:
             double_check(directory)
+
+        dbHandler.commit_change()
+        dbHandler.cleanup()
 
 
 if __name__ == "__main__":

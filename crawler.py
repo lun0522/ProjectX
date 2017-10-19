@@ -39,9 +39,7 @@ def crawl(directory=default_directory, max_storage=10000):
 
     # view paintings as grids
     max_page = int(max_storage / 20)
-    grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid/sort_by/"
-                           "lifecycle.creation.maker.summary_title_sort/order/desc/page/"
-                           + str(max_page), timeout=1000)
+    grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid/page/{}".format(max_page), timeout=1000)
     all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
 
     try:

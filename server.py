@@ -3,20 +3,15 @@ import time
 import json
 from PIL import Image
 from io import BytesIO
-import dlib
+from detector import create_rect, detect_face_landmark
 import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
-
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
 authenticationString = "PortableEmotionAnalysis"
 identityString = "PEAServer"
-predictor_path = "/Users/lun/Desktop/ProjectX/shape_predictor_68_face_landmarks.dat"
-
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor(predictor_path)
 
 
 def print_with_date(content):
@@ -27,12 +22,6 @@ def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     return s.getsockname()[0]
-
-
-def detect_face_landmark(img):
-    bounding_box = dlib.rectangle(0, 0, img.shape[1], img.shape[0])
-    landmark_points = predictor(img, bounding_box)
-    return [(point.x, point.y) for point in landmark_points.parts()]
 
 
 class MyServer(BaseHTTPRequestHandler):
@@ -52,10 +41,10 @@ class MyServer(BaseHTTPRequestHandler):
                 print_with_date("Request is authenticated")
 
                 content_length = int(self.headers['Content-Length'])
-                img = Image.open(BytesIO(self.rfile.read(content_length)))
+                img = np.array(Image.open(BytesIO(self.rfile.read(content_length))))
 
                 print_with_date("Start to process image")
-                landmarks = detect_face_landmark(np.array(img))
+                landmarks = detect_face_landmark(img, create_rect(0, 0, img.shape[1], img.shape[0]))
 
                 response = {"landmarks": landmarks}
                 self.wfile.write(bytes(json.dumps(response), encoding="utf-8"))

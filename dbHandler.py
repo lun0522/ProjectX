@@ -1,18 +1,46 @@
 import mysql.connector
 import re
+import json
 
-cnx = mysql.connector.connect(user='root',
-                              password='password',
-                              host='localhost',
-                              database='paintings')
+"""
+mysql> describe bounding_box;
++----------+------------+------+-----+---------+----------------+
+| Field    | Type       | Null | Key | Default | Extra          |
++----------+------------+------+-----+---------+----------------+
+| id       | int(11)    | NO   | PRI | NULL    | auto_increment |
+| title    | char(60)   | NO   |     | NULL    |                |
+| has_face | tinyint(1) | NO   |     | NULL    |                |
+| bbox     | json       | YES  |     | NULL    |                |
++----------+------------+------+-----+---------+----------------+
+
+mysql> describe landmarks;
++--------+----------+------+-----+---------+----------------+
+| Field  | Type     | Null | Key | Default | Extra          |
++--------+----------+------+-----+---------+----------------+
+| id     | int(11)  | NO   | PRI | NULL    | auto_increment |
+| title  | char(60) | NO   |     | NULL    |                |
+| points | json     | NO   |     | NULL    |                |
++--------+----------+------+-----+---------+----------------+
+"""
+
+cnx = mysql.connector.connect(user="root",
+                              password="password",
+                              host="localhost",
+                              database="paintings")
 cursor = cnx.cursor(buffered=True)
 
-add_bbox = ("INSERT INTO bounding_box"
-            "(title, has_face, xlo, xhi, ylo, yhi)"
-            "VALUES (%s, %s, %s, %s, %s, %s)")
-add_no_face = ("INSERT INTO bounding_box"
-            "(title, has_face)"
-            "VALUES (%s, %s)")
+add_bbox = ("INSERT INTO bounding_box "
+            "(title, has_face, bbox) "
+            "VALUES (%s, %s, %s)")
+
+add_landmarks = ("INSERT INTO landmarks "
+                 "(title, points) "
+                 "VALUES (%s, %s)")
+
+add_no_face = ("INSERT INTO bounding_box "
+               "(title, has_face) "
+               "VALUES (%s, %s)")
+
 query_bbox = ("SELECT has_face "
               "FROM bounding_box "
               "WHERE title=%s")
@@ -20,7 +48,7 @@ query_bbox = ("SELECT has_face "
 
 def title_to_filename(title):
     # any non-alphanumeric character will be replaced
-    title = re.sub('[^0-9a-zA-Z]+', ' ', title.strip())
+    title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
     if len(title) > 50:
         title = title[0:50]
     return title, title.replace(" ", "_") + ".jpg"
@@ -31,7 +59,11 @@ def filename_to_title(filename):
 
 
 def store_bounding_box(title, xlo, xhi, ylo, yhi):
-    cursor.execute(add_bbox, (title, 1, xlo, xhi, ylo, yhi))
+    cursor.execute(add_bbox, (title, 1, json.dumps((xlo, xhi, ylo, yhi))))
+
+
+def store_landmarks(title, landmarks):
+    cursor.execute(add_landmarks, (title, json.dumps(landmarks)))
 
 
 def denote_no_face(title):
