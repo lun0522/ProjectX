@@ -23,6 +23,7 @@ mysql> describe landmarks;
 +--------+----------+------+-----+---------+----------------+
 """
 
+paintings_dir = "/Users/lun/Desktop/ProjectX/paintings/"
 cnx = mysql.connector.connect(user="root",
                               password="password",
                               host="localhost",
@@ -45,17 +46,16 @@ query_bbox = ("SELECT has_face "
               "FROM bounding_box "
               "WHERE title=%s")
 
-
 query_landmarks = ("SELECT title, points "
                    "FROM landmarks ")
 
 
 def title_to_filename(title):
     # any non-alphanumeric character will be replaced
-    title = re.sub("[^0-9a-zA-Z]+", " ", title.strip())
+    title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
     if len(title) > 50:
-        title = title[0:50]
-    return title, title.strip().replace(" ", "_") + ".jpg"
+        title = title[0:50].strip()
+    return title, title.replace(" ", "_") + ".jpg"
 
 
 def filename_to_title(filename):

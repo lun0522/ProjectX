@@ -5,7 +5,6 @@ import os
 from detector import detect
 import dbHandler
 
-default_directory = "/Users/lun/Desktop/ProjectX/paintings/"
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "AppleWebKit/537.1 (KHTML, like Gecko) "
                          "Chrome/22.0.1207.1 Safari/537.1"}
@@ -31,7 +30,7 @@ def fetch_image(url, title, filename, count):
         print("Timeout when download: {}".format(title))
 
 
-def crawl(directory=default_directory, max_storage=10000):
+def crawl(directory=dbHandler.paintings_dir, max_storage=10000):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)

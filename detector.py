@@ -5,14 +5,13 @@ import dbHandler
 from skimage import io
 import mysql.connector
 
-default_directory = "/Users/lun/Desktop/ProjectX/paintings/"
 predictor_path = "/Users/lun/Desktop/ProjectX/shape_predictor_68_face_landmarks.dat"
 
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(predictor_path)
 
 
-def change_directory(directory=default_directory):
+def change_directory(directory=dbHandler.paintings_dir):
     # specify directory where stores paintings
     if not os.path.exists(directory):
         print("Wrong directory!")
@@ -34,7 +33,7 @@ def detect_face_landmark(img, bbox, scale_x=1.0, scale_y=1.0):
             for point in predictor(img, bbox).parts()]
 
 
-def double_check(directory=default_directory):
+def double_check(directory=dbHandler.paintings_dir):
     change_directory(directory)
 
     try:
@@ -51,7 +50,7 @@ def double_check(directory=default_directory):
         print("Error in double check: {}".format(err.msg))
 
 
-def detect(directory=default_directory, do_double_check=True):
+def detect(directory=dbHandler.paintings_dir, do_double_check=True):
     change_directory(directory)
 
     try:
