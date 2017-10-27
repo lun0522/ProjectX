@@ -4,8 +4,8 @@ import itertools
 import dbHandler
 from PIL import Image
 import os
-import time
 import math
+import time
 
 # "landmark name": (start_index, index_range, weight)
 landmark_map = {
@@ -48,33 +48,20 @@ def knn_search(target):
             print("Not exists: {}".format(all_landmarks[idx][0]))
 
 
-def rotate_x(angle, x, y):
-    return math.cos(angle)*x + math.sin(angle)*y
-
-
-def rotate_y(angle, x, y):
-    return -math.sin(angle)*x + math.cos(angle)*y
-
-
-def rotate_point(angle, center, point):
-    x = point[0] - center[0]
-    y = point[1] - center[1]
-    new_x = x*math.cos(angle) - y*math.sin(angle)
-    new_y = y*math.cos(angle) + x*math.sin(angle)
-    return new_x + center[0], new_y + center[1]
-
-
-def tilt_points(angle, points):
+def rotate_points(angle, points, scale_x=1.0, scale_y=1.0):
     # find the center of points
-    center = [0.0, 0.0]
-    for (x, y) in points:
-        center[0] += x
-        center[1] += y
-    center[0] /= len(points)
-    center[1] /= len(points)
+    points_array = np.array(points)
+    center_x = np.average(points_array[:, 0])
+    center_y = np.average(points_array[:, 1])
 
     # rotate each point about the center
-    return [rotate_point(angle, center, point) for point in points]
+    points_array[:, 0] -= center_x
+    points_array[:, 1] -= center_y
+    new_points = np.empty(shape=points_array.shape)
+    new_points[:, 0] = scale_x*(points_array[:, 0]*math.cos(angle) + points_array[:, 1]*math.sin(angle) + center_x)
+    new_points[:, 1] = scale_y*(points_array[:, 1]*math.cos(angle) - points_array[:, 0]*math.sin(angle) + center_y)
+
+    return new_points.tolist()
 
 
 def retrieve_painting(landmarks, face_image):
@@ -83,17 +70,19 @@ def retrieve_painting(landmarks, face_image):
     scaled_image = face_image.resize((width, height), Image.ANTIALIAS)
 
     # do affine transform to align the face
+    angle = math.atan2(landmarks[45][1] - landmarks[36][1],
+                       landmarks[45][0] - landmarks[36][0])
+    rotated_landmarks = rotate_points(angle, landmarks, width/face_image.size[0], height/face_image.size[1])
+
     # https://stackoverflow.com/questions/17056209/python-pil-affine-transformation
-    angle = math.pi / 2 + math.atan2(landmarks[27][1] - landmarks[30][1], landmarks[27][0] - landmarks[30][0])
-    x_extremes = [rotate_x(angle, 0, 0), rotate_x(angle, 0, height - 1),
-                  rotate_x(angle, width - 1, 0), rotate_x(angle, width - 1, height - 1)]
-    y_extremes = [rotate_y(angle, 0, 0), rotate_y(angle, 0, height - 1),
-                  rotate_y(angle, width - 1, 0), rotate_y(angle, width - 1, height - 1)]
+    extremes = [(0, 0), (0, height - 1), (width - 1, 0), (width - 1, height - 1)]
+    x_extremes = [ math.cos(angle)*x + math.sin(angle)*y for x, y in extremes]
+    y_extremes = [-math.sin(angle)*x + math.cos(angle)*y for x, y in extremes]
     mnx = min(x_extremes)
     mxx = max(x_extremes)
     mny = min(y_extremes)
     mxy = max(y_extremes)
-    inv_t = np.linalg.inv(np.matrix([[math.cos(angle), math.sin(angle), -mnx],
+    inv_t = np.linalg.inv(np.matrix([[ math.cos(angle), math.sin(angle), -mnx],
                                      [-math.sin(angle), math.cos(angle), -mny],
                                      [0, 0, 1]]))
     scaled_image = scaled_image.transform((int(round(mxx - mnx)), int(round((mxy - mny)))),
@@ -101,10 +90,14 @@ def retrieve_painting(landmarks, face_image):
                                           (inv_t[0, 0], inv_t[0, 1], inv_t[0, 2],
                                            inv_t[1, 0], inv_t[1, 1], inv_t[1, 2]),
                                           Image.BILINEAR)
-    scaled_image = scaled_image.crop(((scaled_image.size[0] - width)/2,
+    scaled_image = scaled_image.crop(((scaled_image.size[0] - width )/2,
                                       (scaled_image.size[1] - height)/2,
-                                      (scaled_image.size[0] + width)/2,
+                                      (scaled_image.size[0] + width )/2,
                                       (scaled_image.size[1] + height)/2))
+    pixels = scaled_image.load()
+    for x, y in rotated_landmarks:
+        if 0 < x < width and 0 < y < height:
+            pixels[x, y] = (0, 0, 255, 255)
     scaled_image.show()
 
 
