@@ -96,11 +96,13 @@ def get_all_landmarks():
 
 def commit_change():
     cnx.commit()
+    print("DB changes committed")
 
 
 def cleanup():
     cursor.close()
     cnx.close()
+    print("DB cleaned up")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ from detector import create_rect, detect_face_landmark
 import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
+from comparator import retrieve_painting
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
@@ -41,10 +42,12 @@ class MyServer(BaseHTTPRequestHandler):
                 print_with_date("Request is authenticated")
 
                 content_length = int(self.headers['Content-Length'])
-                img = np.array(Image.open(BytesIO(self.rfile.read(content_length))))
+                image = Image.open(BytesIO(self.rfile.read(content_length)))
+                img_data = np.array(image)
 
                 print_with_date("Start to process image")
-                landmarks = detect_face_landmark(img, create_rect(0, 0, img.shape[1], img.shape[0]))
+                landmarks = detect_face_landmark(img_data, create_rect(0, 0, img_data.shape[1], img_data.shape[0]))
+                retrieve_painting(landmarks, image)
 
                 response = {"landmarks": landmarks}
                 self.wfile.write(bytes(json.dumps(response), encoding="utf-8"))

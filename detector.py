@@ -57,7 +57,7 @@ def detect(directory=dbHandler.paintings_dir, do_double_check=True):
         for img_file in glob.glob("*.jpg"):
             # some images are downloaded, but have invalid file size
             # those < 1KB will be deleted
-            if os.path.getsize(img_file) < 1024:
+            if os.path.getsize(img_file) < 10240:
                 print("Invalid file size: {}".format(img_file))
                 os.remove(img_file)
                 continue
