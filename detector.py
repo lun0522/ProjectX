@@ -86,8 +86,8 @@ def detect(directory=dbHandler.paintings_dir, do_double_check=True):
                             title, bbox.left(), bbox.right(),
                             bbox.bottom(), bbox.top())
 
-                        scale_x = 100.0 / (bbox.right() - bbox.left())
-                        scale_y = 100.0 / (bbox.bottom() - bbox.top())
+                        scale_x = 100.0/(bbox.right() - bbox.left())
+                        scale_y = 100.0/(bbox.bottom() - bbox.top())
                         landmarks = detect_face_landmark(img_data, bbox, scale_x, scale_y)
                         dbHandler.store_landmarks(title, landmarks[17:])
 

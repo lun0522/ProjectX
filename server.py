@@ -46,7 +46,7 @@ class MyServer(BaseHTTPRequestHandler):
                 img_data = np.array(image)
 
                 print_with_date("Start to process image")
-                landmarks = detect_face_landmark(img_data, create_rect(0, 0, img_data.shape[1], img_data.shape[0]))
+                landmarks = detect_face_landmark(img_data, create_rect(0, 0, image.size[0], image.size[1]))
                 retrieve_painting(landmarks, image)
 
                 response = {"landmarks": landmarks}

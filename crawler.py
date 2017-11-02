@@ -37,7 +37,7 @@ def crawl(directory=dbHandler.paintings_dir, max_storage=10000):
     os.chdir(directory)
 
     # view paintings as grids
-    max_page = int(max_storage / 20)
+    max_page = int(max_storage/20)
     grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid/page/{}".format(max_page), timeout=1000)
     all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
 
