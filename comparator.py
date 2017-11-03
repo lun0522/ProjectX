@@ -4,7 +4,6 @@ import itertools
 import dbHandler
 from PIL import Image
 import os
-import time
 
 # http://openface-api.readthedocs.io/en/latest/_modules/openface/align_dlib.html
 face_model = np.float32([
@@ -77,15 +76,7 @@ neighbors = NearestNeighbors(metric="euclidean", n_neighbors=1).fit(train_data)
 
 def knn_search(target):
     os.chdir(dbHandler.paintings_dir)
-    start = time.time()
-    distances, indices = neighbors.kneighbors(target)
-    print("time: {:.3f}s".format(time.time() - start))
-    for idx in indices[0]:
-        if os.path.exists(all_landmarks[idx][0]):
-            img = Image.open(all_landmarks[idx][0])
-            img.show()
-        else:
-            print("Not exists: {}".format(all_landmarks[idx][0]))
+    return neighbors.kneighbors(target)[1][0][0]
 
 
 def affine_transform(landmarks, face_image, output_size):
@@ -112,20 +103,9 @@ def affine_transform(landmarks, face_image, output_size):
 
 
 def retrieve_painting(landmarks, face_image):
+    # TODO: modify the searching method
     aligned_landmarks, aligned_image = affine_transform(landmarks, face_image, (256, 256))
-    aligned_image.show()
 
-    knn_search([np.array([(x*100.0/face_image.size[0],
-                           y*100.0/face_image.size[1])
-                          for x, y in landmarks[17:]]).flatten()])
-
-
-if __name__ == "__main__":
-    try:
-        while True:
-            num = input("Input a number: ")
-            knn_search([train_data[int(num)]])
-
-    except KeyboardInterrupt:
-        print("")
-        dbHandler.cleanup()
+    return knn_search([np.array([(x*100.0/face_image.size[0],
+                                 y*100.0/face_image.size[1])
+                                for x, y in landmarks[17:]]).flatten()])
