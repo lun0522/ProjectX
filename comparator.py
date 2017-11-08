@@ -75,7 +75,6 @@ neighbors = NearestNeighbors(metric="euclidean", n_neighbors=1).fit(train_data)
 
 
 def knn_search(target):
-    os.chdir(dbHandler.paintings_dir)
     return neighbors.kneighbors(target)[1][0][0]
 
 

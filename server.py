@@ -27,6 +27,7 @@ image_stylization_transform \
 --which_styles="[{}]" \
 --output_dir={} \
 --output_basename="stylized"
+source deactivate
 """
 
 
@@ -42,46 +43,81 @@ def get_ip_address():
 
 class MyServer(BaseHTTPRequestHandler):
 
-    def _set_headers(self):
-        self.send_response(200)
+    def _set_headers(self, code):
+        self.send_response(code)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
 
     def do_POST(self):
         start_time = time.time()
-        print_with_date("Receive a request")
+        print_with_date("Receive a POST request")
 
-        self._set_headers()
-        if "Authentication" in self.headers:
-            if self.headers["Authentication"] == authenticationString:
-                print_with_date("Request is authenticated")
+        if "Authentication" in self.headers and self.headers["Authentication"] == authenticationString:
+            if "Operation" in self.headers and "Timestamp" in self.headers:
+                if self.headers["Operation"] == "Store":
+                    content_length = int(self.headers["Content-Length"])
+                    photo = Image.open(BytesIO(self.rfile.read(content_length)))
+                    photo.save("{}{}.jpg".format(tmp_dir, self.headers["Timestamp"]))
+                    self._set_headers(200)
 
-                content_length = int(self.headers['Content-Length'])
-                image = Image.open(BytesIO(self.rfile.read(content_length)))
-                img_data = np.array(image)
+                elif self.headers["Operation"] == "Transfer":
+                    os.chdir(tmp_dir)
+                    photo_path = "{}.jpg".format(self.headers["Timestamp"])
+                    if os.path.isfile(photo_path):
+                        content_length = int(self.headers["Content-Length"])
+                        selfie = Image.open(BytesIO(self.rfile.read(content_length)))
+                        selfie_data = np.array(selfie)
 
-                print_with_date("Start to process image")
+                        landmarks = detect_face_landmark(selfie_data, create_rect(0, 0, selfie.size[0], selfie.size[1]))
+                        style_idx = retrieve_painting(landmarks, selfie) % 32
 
-                landmarks = detect_face_landmark(img_data, create_rect(0, 0, image.size[0], image.size[1]))
-                style_idx = retrieve_painting(landmarks, image) % 32
+                        subprocess.call([transfer_command.format(photo_path, style_idx, "./")], shell=True)
 
-                os.chdir(tmp_dir)
-                image.save("tmp.jpg")
-                subprocess.call([transfer_command.format("tmp.jpg", style_idx, "./")], shell=True)
+                        stylized = "stylized_{}.png".format(style_idx)
+                        with open(stylized, "rb") as fp:
+                            response = {"Landmarks": landmarks, "Stylized": str(fp.read())}
+                            self.wfile.write(bytes(json.dumps(response), encoding="utf-8"))
+                            os.remove(stylized)
+                        self._set_headers(200)
 
-                stylized = "stylized_{}.png".format(style_idx)
-                with open(stylized, "rb") as fp:
-                    response = {"landmarks": landmarks, "stylized": str(fp.read())}
-                    self.wfile.write(bytes(json.dumps(response), encoding="utf-8"))
-
-                os.remove(stylized)
-
-                print_with_date("Response sent")
-                print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
+                    else:
+                        print_with_date("Photo not exist: {}".format(photo_path))
+                        self._set_headers(404)
+                else:
+                    print_with_date("Unknown operation: {}".format(self.headers["Operation"]))
+                    self._set_headers(400)
             else:
-                print_with_date("Request is not authenticated")
+                print_with_date("No operation provided")
+                self._set_headers(400)
         else:
-            print_with_date("Request has no authentication string")
+            print_with_date("Not authenticated")
+            self._set_headers(401)
+
+        print_with_date("Response sent")
+        print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
+
+    def do_DELETE(self):
+        start_time = time.time()
+        print_with_date("Receive a DELETE request")
+
+        if "Authentication" in self.headers and self.headers["Authentication"] == authenticationString:
+            if "Timestamp" in self.headers:
+                file_path = "{}{}.jpg".format(tmp_dir, self.headers["Timestamp"])
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    print_with_date("{} removed".format(file_path))
+                else:
+                    print_with_date("{} not exists".format(file_path))
+                self._set_headers(200)
+            else:
+                print_with_date("No timestamp provided")
+                self._set_headers(400)
+        else:
+            print_with_date("Not authenticated")
+            self._set_headers(401)
+
+        print_with_date("Response sent")
+        print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
 
 
 if __name__ == "__main__":
@@ -97,14 +133,10 @@ if __name__ == "__main__":
     zeroconf.register_service(info)
     print_with_date("Multi-cast service registered - {}".format(txtRecord))
 
-    subprocess.call(["source activate magenta"], shell=True)
-
     try:
         myServer.serve_forever()
     except KeyboardInterrupt:
         print_with_date("Keyboard interrupt")
-
-    subprocess.call(["source deactivate"], shell=True)
 
     myServer.server_close()
     print_with_date("Server stops - {}:{}".format(ip, hostPort))
