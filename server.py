@@ -1,6 +1,5 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
-import json
 from PIL import Image
 from io import BytesIO
 from detector import create_rect, detect_face_landmark
@@ -9,9 +8,7 @@ from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
 from comparator import retrieve_painting
 import subprocess
-import glob
 import os
-import base64
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
@@ -43,9 +40,9 @@ def get_ip_address():
 
 class MyServer(BaseHTTPRequestHandler):
 
-    def _set_headers(self, code):
+    def _set_headers(self, code, content_type="application/json"):
         self.send_response(code)
-        self.send_header('Content-type', 'application/json')
+        self.send_header("Content-Type", content_type)
         self.end_headers()
 
     def do_POST(self):
@@ -57,6 +54,13 @@ class MyServer(BaseHTTPRequestHandler):
                 if self.headers["Operation"] == "Store":
                     content_length = int(self.headers["Content-Length"])
                     photo = Image.open(BytesIO(self.rfile.read(content_length)))
+
+                    # currently set a limit to the length of the longer side of the photo
+                    limit = 500
+                    if photo.size[0] > limit or photo.size[1] > limit:
+                        ratio = max(photo.size[0], photo.size[1]) / limit
+                        photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
+
                     photo.save("{}{}.jpg".format(tmp_dir, self.headers["Timestamp"]))
                     self._set_headers(200)
 
@@ -71,14 +75,16 @@ class MyServer(BaseHTTPRequestHandler):
                         landmarks = detect_face_landmark(selfie_data, create_rect(0, 0, selfie.size[0], selfie.size[1]))
                         style_idx = retrieve_painting(landmarks, selfie) % 32
 
+                        print_with_date("Start transfer")
                         subprocess.call([transfer_command.format(photo_path, style_idx, "./")], shell=True)
 
                         stylized = "stylized_{}.png".format(style_idx)
                         with open(stylized, "rb") as fp:
-                            response = {"Landmarks": landmarks, "Stylized": str(fp.read())}
-                            self.wfile.write(bytes(json.dumps(response), encoding="utf-8"))
-                            os.remove(stylized)
-                        self._set_headers(200)
+                            self._set_headers(200, "application/octet-stream")
+                            self.wfile.write(fp.read())
+
+                        print_with_date("Transfer finished")
+                        os.remove(stylized)
 
                     else:
                         print_with_date("Photo not exist: {}".format(photo_path))
