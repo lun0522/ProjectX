@@ -40,7 +40,7 @@ def detect(directory=dbHandler.downloads_dir):
     change_directory(directory)
 
     try:
-        for img_file in glob.glob("*.jpg"):
+        for img_file in sorted(glob.glob("*.jpg")):
             # some images are downloaded, but have invalid file size
             # those < 10KB will be deleted
             if os.path.getsize(img_file) < 10240:
@@ -54,32 +54,22 @@ def detect(directory=dbHandler.downloads_dir):
             # do face detection
             faces = detect_face(img_data)
 
-            # if no face, delete the image
-            if not len(faces):
-                print("No face found in {}".format(title))
-                dbHandler.remove_url(title)
-                os.remove(img_file)
-
             # if any face is detected, store its bounding box
             # and do face landmark detection
-            else:
+            if len(faces):
                 print("Found {} face(s) in {}".format(len(faces), title))
-                url = dbHandler.delete_bounding_box(title)
+                url = dbHandler.retrieve_download_url(title)
 
                 if url:
-                    file_id = dbHandler.store_file_info(url)
+                    file_id = dbHandler.store_painting_info(url)
 
                     for idx, bbox in enumerate(faces):
-                        bbox_id = dbHandler.store_bounding_box(
-                            title, url, True,
-                            bbox.left(), bbox.right(),
-                            bbox.bottom(), bbox.top()
-                        )
-
                         scale_x = 100.0/(bbox.right() - bbox.left())
                         scale_y = 100.0/(bbox.bottom() - bbox.top())
                         landmarks = detect_face_landmark(img_data, bbox, scale_x, scale_y)
-                        dbHandler.store_landmarks(bbox_id, file_id, landmarks[17:])
+                        dbHandler.store_landmarks(file_id, landmarks[17:],
+                                                  (bbox.left(), bbox.right(),
+                                                   bbox.bottom(), bbox.top()))
 
                     # move the image to paintings folder
                     filename = str(file_id).zfill(5) + ".jpg"
@@ -88,6 +78,13 @@ def detect(directory=dbHandler.downloads_dir):
                 else:
                     print("No record in database: {}".format(img_file))
                     os.remove(img_file)
+
+            # if no face, delete the image
+            else:
+                print("No face found in {}".format(title))
+                os.remove(img_file)
+
+            dbHandler.remove_redundant_info(title)
 
         print("Detection finished.")
 

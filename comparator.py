@@ -1,9 +1,8 @@
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
-import itertools
-import dbHandler
+from dbHandler import get_all_landmarks, retrieve_painting_url
 from PIL import Image
-
+import itertools
 
 # http://openface-api.readthedocs.io/en/latest/_modules/openface/align_dlib.html
 face_model = np.float32([
@@ -66,7 +65,8 @@ def metric(x1, x2):
                    for landmark, (start_index, index_range, weight) in landmark_map.items()])
 
 
-all_landmarks = dbHandler.get_all_landmarks()
+all_landmarks = get_all_landmarks()
+
 # form an 1-D array of coordinates for each face
 train_data = np.array([list(itertools.chain.from_iterable(points))
                        for points in [row[2] for row in all_landmarks]])
@@ -103,8 +103,14 @@ def affine_transform(landmarks, face_image, output_size):
 
 def retrieve_painting(landmarks, face_image):
     # TODO: modify the searching method
-    aligned_landmarks, aligned_image = affine_transform(landmarks, face_image, (256, 256))
+    # aligned_landmarks, aligned_image = affine_transform(landmarks, face_image, (256, 256))
 
-    return knn_search([np.array([(x*100.0/face_image.size[0],
-                                 y*100.0/face_image.size[1])
-                                for x, y in landmarks[17:]]).flatten()])
+    style_id = all_landmarks[knn_search([np.array([(x*100.0/face_image.size[0],
+                                                    y*100.0/face_image.size[1])
+                                                   for x, y in landmarks[17:]]).flatten()])][0]
+    url = retrieve_painting_url(style_id)
+    if url:
+        return style_id, url
+    else:
+        print("Error in retrieving style id {}".format(style_id))
+        return None

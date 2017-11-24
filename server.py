@@ -16,15 +16,13 @@ authenticationString = "PortableEmotionAnalysis"
 identityString = "PEAServer"
 tmp_dir = "/Users/lun/Desktop/ProjectX/temp/"
 transfer_command = """
-source activate magenta
-image_stylization_transform \
---num_styles=32 \
---checkpoint=/Users/lun/Desktop/ProjectX/varied.ckpt \
---input_image={} \
---which_styles="[{}]" \
---output_dir={} \
---output_basename="stylized"
-source deactivate
+/Users/lun/python27/bin/python \
+/Users/lun/Desktop/ProjectX/neural-style-keras/fast_style_transfer.py \
+--checkpoint_path /Users/lun/Desktop/ProjectX/style118.h5 \
+--input_path {} \
+--output_path {} \
+--use_style_name \
+--gpu -1
 """
 
 
@@ -40,9 +38,11 @@ def get_ip_address():
 
 class MyServer(BaseHTTPRequestHandler):
 
-    def _set_headers(self, code, content_type="application/json"):
+    def _set_headers(self, code, content_type="application/json", extra_info=None):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
+        if extra_info:
+            [self.send_header(key, value) for key, value in extra_info.items()]
         self.end_headers()
 
     def do_POST(self):
@@ -73,14 +73,17 @@ class MyServer(BaseHTTPRequestHandler):
 
                         landmarks = detect_face_landmark(np.array(face_image),
                                                          create_rect(0, 0, face_image.size[0], face_image.size[1]))
-                        style_idx = retrieve_painting(landmarks, face_image) % 32
+                        style_id, url = retrieve_painting(landmarks, face_image)
+                        title = url[url.find("artworks/") + len("artworks/"): url.rfind("-")].replace("-", " ").title()
 
-                        print_with_date("Start transfer style: {}".format(style_idx))
-                        subprocess.call([transfer_command.format(photo_path, style_idx, "./")], shell=True)
+                        print_with_date("Start transfer style: {}".format(style_id))
+                        subprocess.call([transfer_command.format(photo_path, tmp_dir)], shell=True)
 
-                        stylized = "stylized_{}.png".format(style_idx)
+                        stylized = "{}_stylized_{}.png".format(self.headers["Timestamp"], "00001")
                         with open(stylized, "rb") as fp:
-                            self._set_headers(200, "application/octet-stream")
+                            self._set_headers(200, "application/octet-stream",
+                                              {"Image-URL": url,
+                                               "Image-Title": title})
                             self.wfile.write(fp.read())
 
                         print_with_date("Transfer finished")

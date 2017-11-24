@@ -25,7 +25,7 @@ def fetch_image(url, title, count):
         with open(title + ".jpg", "wb") as f:
             f.write(img_data.content)
             lock.acquire()
-            dbHandler.store_bounding_box(title, url, False)
+            dbHandler.store_download_info(title, url[:url.find("/view_as")])
             count.value += 1
             print("No.{} {}".format(count.value, title))
             lock.release()
@@ -61,8 +61,8 @@ def crawl(directory=dbHandler.downloads_dir, max_storage=500, do_detection=True)
             # only use the first 30 characters of the title to identify paintings
             normed_title = dbHandler.normalize_title(title_info.get_text())
 
-            # only download those haven't been done face detection
-            if not dbHandler.bounding_box_did_exist(normed_title):
+            # only download those haven't been seen before
+            if not dbHandler.retrieve_download_url(normed_title):
                 pool.apply_async(fetch_image, args=(url, normed_title, count))
             else:
                 print("Already exists: {}".format(normed_title))
