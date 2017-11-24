@@ -4,6 +4,7 @@ import glob
 import dbHandler
 from skimage import io
 import mysql.connector
+import shutil
 
 predictor_path = "/Users/lun/Desktop/ProjectX/shape_predictor_68_face_landmarks.dat"
 
@@ -33,63 +34,60 @@ def detect_face_landmark(img, bbox, scale_x=1.0, scale_y=1.0):
             for point in predictor(img, bbox).parts()]
 
 
-def double_check(directory=dbHandler.paintings_dir):
-    change_directory(directory)
-
-    try:
-        # check whether any image with no face is still stored in the disk
-        for img_file in glob.glob("*.jpg"):
-            title = dbHandler.filename_to_title(img_file)
-            if not dbHandler.bbox_has_face(title):
-                print("Has no face but is still in disk: {}".format(title))
-                os.remove(img_file)
-
-        print("Double check finished.")
-
-    except mysql.connector.Error as err:
-        print("Error in double check: {}".format(err.msg))
-
-
-def detect(directory=dbHandler.paintings_dir, do_double_check=True):
+def detect(directory=dbHandler.downloads_dir):
+    if not os.path.exists(dbHandler.paintings_dir):
+        os.makedirs(dbHandler.paintings_dir)
     change_directory(directory)
 
     try:
         for img_file in glob.glob("*.jpg"):
             # some images are downloaded, but have invalid file size
-            # those < 1KB will be deleted
+            # those < 10KB will be deleted
             if os.path.getsize(img_file) < 10240:
                 print("Invalid file size: {}".format(img_file))
                 os.remove(img_file)
                 continue
 
-            # only process those haven't any record in the database
-            title = dbHandler.filename_to_title(img_file)
-            if not dbHandler.bbox_did_exist(title):
-                img_data = io.imread(img_file)
+            title = img_file[:-4]
+            img_data = io.imread(img_file)
 
-                # da face detection
-                faces = detect_face(img_data)
+            # do face detection
+            faces = detect_face(img_data)
 
-                # if no face, denote the title of image as "not having face"
-                # and delete this image
-                if not len(faces):
-                    print("No face found in {}".format(title))
-                    dbHandler.denote_no_face(title)
-                    os.remove(img_file)
+            # if no face, delete the image
+            if not len(faces):
+                print("No face found in {}".format(title))
+                dbHandler.remove_url(title)
+                os.remove(img_file)
 
-                # if any face is detected, store its bounding box
-                else:
-                    print("Found {face_count} face(s) in {img_title}".format(
-                        face_count=len(faces), img_title=title))
+            # if any face is detected, store its bounding box
+            # and do face landmark detection
+            else:
+                print("Found {} face(s) in {}".format(len(faces), title))
+                url = dbHandler.delete_bounding_box(title)
+
+                if url:
+                    file_id = dbHandler.store_file_info(url)
+
                     for idx, bbox in enumerate(faces):
-                        dbHandler.store_bounding_box(
-                            title, bbox.left(), bbox.right(),
-                            bbox.bottom(), bbox.top())
+                        bbox_id = dbHandler.store_bounding_box(
+                            title, url, True,
+                            bbox.left(), bbox.right(),
+                            bbox.bottom(), bbox.top()
+                        )
 
                         scale_x = 100.0/(bbox.right() - bbox.left())
                         scale_y = 100.0/(bbox.bottom() - bbox.top())
                         landmarks = detect_face_landmark(img_data, bbox, scale_x, scale_y)
-                        dbHandler.store_landmarks(title, landmarks[17:])
+                        dbHandler.store_landmarks(bbox_id, file_id, landmarks[17:])
+
+                    # move the image to paintings folder
+                    filename = str(file_id).zfill(5) + ".jpg"
+                    shutil.move(directory + img_file, dbHandler.paintings_dir + filename)
+
+                else:
+                    print("No record in database: {}".format(img_file))
+                    os.remove(img_file)
 
         print("Detection finished.")
 
@@ -98,9 +96,6 @@ def detect(directory=dbHandler.paintings_dir, do_double_check=True):
 
     # ensure to save all changes and do double check if necessary
     finally:
-        if do_double_check:
-            double_check(directory)
-
         dbHandler.commit_change()
         dbHandler.cleanup()
 

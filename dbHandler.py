@@ -3,26 +3,39 @@ import re
 import json
 
 """
-mysql> describe bounding_box;
-+----------+------------+------+-----+---------+----------------+
-| Field    | Type       | Null | Key | Default | Extra          |
-+----------+------------+------+-----+---------+----------------+
-| id       | int(11)    | NO   | PRI | NULL    | auto_increment |
-| title    | char(60)   | NO   |     | NULL    |                |
-| has_face | tinyint(1) | NO   |     | NULL    |                |
-| bbox     | json       | YES  |     | NULL    |                |
-+----------+------------+------+-----+---------+----------------+
+mysql> use paintings
 
-mysql> describe landmarks;
-+--------+----------+------+-----+---------+----------------+
-| Field  | Type     | Null | Key | Default | Extra          |
-+--------+----------+------+-----+---------+----------------+
-| id     | int(11)  | NO   | PRI | NULL    | auto_increment |
-| title  | char(60) | NO   |     | NULL    |                |
-| points | json     | NO   |     | NULL    |                |
-+--------+----------+------+-----+---------+----------------+
+mysql> describe Boundingbox;
++----------+---------------+------+-----+---------+----------------+
+| Field    | Type          | Null | Key | Default | Extra          |
++----------+---------------+------+-----+---------+----------------+
+| bid      | int(11)       | NO   | PRI | NULL    | auto_increment |
+| title    | char(30)      | NO   |     | NULL    |                |
+| url      | varchar(2083) | YES  |     | NULL    |                |
+| has_face | tinyint(1)    | NO   |     | NULL    |                |
+| bbox     | json          | YES  |     | NULL    |                |
++----------+---------------+------+-----+---------+----------------+
+
+mysql> describe File;
++-------+---------------+------+-----+---------+----------------+
+| Field | Type          | Null | Key | Default | Extra          |
++-------+---------------+------+-----+---------+----------------+
+| fid   | int(11)       | NO   | PRI | NULL    | auto_increment |
+| url   | varchar(2083) | NO   |     | NULL    |                |
++-------+---------------+------+-----+---------+----------------+
+
+mysql> describe Landmark;
++--------+---------+------+-----+---------+----------------+
+| Field  | Type    | Null | Key | Default | Extra          |
++--------+---------+------+-----+---------+----------------+
+| lid    | int(11) | NO   | PRI | NULL    | auto_increment |
+| bid    | int(11) | NO   | MUL | NULL    |                |
+| fid    | int(11) | NO   | MUL | NULL    |                |
+| points | json    | NO   |     | NULL    |                |
++--------+---------+------+-----+---------+----------------+
 """
 
+downloads_dir = "/Users/lun/Desktop/ProjectX/downloads/"
 paintings_dir = "/Users/lun/Desktop/ProjectX/paintings/"
 cnx = mysql.connector.connect(user="root",
                               password="password",
@@ -30,57 +43,64 @@ cnx = mysql.connector.connect(user="root",
                               database="paintings")
 cursor = cnx.cursor(buffered=True)
 
-add_bbox = ("INSERT INTO bounding_box "
-            "(title, has_face, bbox) "
-            "VALUES (%s, %s, %s)")
+insert_bbox = " ".join(("INSERT INTO Boundingbox",
+                        "(title, url, has_face, bbox)",
+                        "VALUES (%s, %s, %s, %s)"))
 
-add_landmarks = ("INSERT INTO landmarks "
-                 "(title, points) "
-                 "VALUES (%s, %s)")
+update_url_in_bbox = " ".join(("UPDATE Boundingbox",
+                               "SET url=%s",
+                               "WHERE title=%s"))
 
-add_no_face = ("INSERT INTO bounding_box "
-               "(title, has_face) "
-               "VALUES (%s, %s)")
+query_face_in_bbox = " ".join(("SELECT has_face",
+                               "FROM Boundingbox",
+                               "WHERE title=%s"))
 
-query_bbox = ("SELECT has_face "
-              "FROM bounding_box "
-              "WHERE title=%s")
+query_url_in_bbox = " ".join(("SELECT url",
+                              "FROM Boundingbox",
+                              "WHERE title=%s"))
 
-query_landmarks = ("SELECT title, points "
-                   "FROM landmarks ")
+delete_bbox = " ".join(("DELETE FROM Boundingbox",
+                        "WHERE title=%s"))
+
+insert_file = " ".join(("INSERT INTO File",
+                        "(url)",
+                        "VALUES (%s)"))
+
+insert_landmark = " ".join(("INSERT INTO Landmark",
+                            "(bid, fid, points)",
+                            "VALUES (%s, %s, %s)"))
+
+query_landmarks = " ".join(("SELECT bid, fid, points",
+                            "FROM landmarks"))
 
 
-def title_to_filename(title):
+def normalize_title(title):
     # any non-alphanumeric character will be replaced
-    title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
-    if len(title) > 50:
-        title = title[0:50].strip()
-    return title, title.replace(" ", "_") + ".jpg"
+    normed_title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
+    if len(normed_title) > 30:
+        normed_title = normed_title[0:30].strip()
+    return normed_title.replace(" ", "_")
 
 
-def filename_to_title(filename):
-    return filename[0:-4].replace("_", " ")
+def store_bounding_box(title, url, has_face, xlo=0, xhi=0, ylo=0, yhi=0):
+    if has_face:
+        cursor.execute(insert_bbox, (title, url, 1, json.dumps((xlo, xhi, ylo, yhi))))
+    else:
+        cursor.execute(insert_bbox, (title, url, 0, None))
+    return cursor.lastrowid
 
 
-def store_bounding_box(title, xlo, xhi, ylo, yhi):
-    cursor.execute(add_bbox, (title, 1, json.dumps((xlo, xhi, ylo, yhi))))
+def remove_url(title):
+    cursor.execute(update_url_in_bbox, (None, title))
 
 
-def store_landmarks(title, landmarks):
-    cursor.execute(add_landmarks, (title, json.dumps(landmarks)))
-
-
-def denote_no_face(title):
-    cursor.execute(add_no_face, (title, 0))
-
-
-def bbox_did_exist(title):
-    cursor.execute(query_bbox, (title, ))
+def bounding_box_did_exist(title):
+    cursor.execute(query_face_in_bbox, (title, ))
     return cursor.rowcount
 
 
-def bbox_has_face(title):
-    cursor.execute(query_bbox, (title,))
+def bounding_box_has_face(title):
+    cursor.execute(query_face_in_bbox, (title,))
     if cursor.rowcount > 1:
         return True
     elif cursor.rowcount == 1:
@@ -89,9 +109,29 @@ def bbox_has_face(title):
         raise mysql.connector.Error(msg="{} does not exist in the database!".format(title))
 
 
+def delete_bounding_box(title):
+    cursor.execute(query_url_in_bbox, (title,))
+    if cursor.rowcount:
+        img_url = [url for (url, ) in cursor][0]
+        cursor.execute(delete_bbox, (title,))
+        return img_url
+    else:
+        return None
+
+
+def store_file_info(url):
+    cursor.execute(insert_file, (url,))
+    return cursor.lastrowid
+
+
+def store_landmarks(bbox_id, file_id, landmarks):
+    cursor.execute(insert_landmark, (bbox_id, file_id, json.dumps(landmarks)))
+    return cursor.lastrowid
+
+
 def get_all_landmarks():
     cursor.execute(query_landmarks)
-    return [(title_to_filename(title)[1], json.loads(points)) for title, points in cursor]
+    return [(bid, fid, json.loads(points)) for bid, fid, points in cursor]
 
 
 def commit_change():
@@ -103,7 +143,3 @@ def cleanup():
     cursor.close()
     cnx.close()
     print("DB cleaned up")
-
-
-if __name__ == "__main__":
-    cleanup()

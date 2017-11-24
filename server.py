@@ -69,13 +69,13 @@ class MyServer(BaseHTTPRequestHandler):
                     photo_path = "{}.jpg".format(self.headers["Timestamp"])
                     if os.path.isfile(photo_path):
                         content_length = int(self.headers["Content-Length"])
-                        selfie = Image.open(BytesIO(self.rfile.read(content_length)))
-                        selfie_data = np.array(selfie)
+                        face_image = Image.open(BytesIO(self.rfile.read(content_length)))
 
-                        landmarks = detect_face_landmark(selfie_data, create_rect(0, 0, selfie.size[0], selfie.size[1]))
-                        style_idx = retrieve_painting(landmarks, selfie) % 32
+                        landmarks = detect_face_landmark(np.array(face_image),
+                                                         create_rect(0, 0, face_image.size[0], face_image.size[1]))
+                        style_idx = retrieve_painting(landmarks, face_image) % 32
 
-                        print_with_date("Start transfer")
+                        print_with_date("Start transfer style: {}".format(style_idx))
                         subprocess.call([transfer_command.format(photo_path, style_idx, "./")], shell=True)
 
                         stylized = "stylized_{}.png".format(style_idx)

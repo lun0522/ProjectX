@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 import dbHandler
 from PIL import Image
-import os
+
 
 # http://openface-api.readthedocs.io/en/latest/_modules/openface/align_dlib.html
 face_model = np.float32([
@@ -69,7 +69,7 @@ def metric(x1, x2):
 all_landmarks = dbHandler.get_all_landmarks()
 # form an 1-D array of coordinates for each face
 train_data = np.array([list(itertools.chain.from_iterable(points))
-                       for points in [row[1] for row in all_landmarks]])
+                       for points in [row[2] for row in all_landmarks]])
 # specify the metric to use and number of neighbors to retrieve
 neighbors = NearestNeighbors(metric="euclidean", n_neighbors=1).fit(train_data)
 

@@ -1,10 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
-from multiprocessing import Pool, Manager
+from multiprocessing import Lock, Pool, Manager
 import os
 from detector import detect
 import dbHandler
 
+lock = Lock()  # used for operating the database after each download
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "AppleWebKit/537.1 (KHTML, like Gecko) "
                          "Chrome/22.0.1207.1 Safari/537.1"}
@@ -14,23 +15,26 @@ def parse_url(url, timeout=10):
     return BeautifulSoup(requests.get(url, headers=headers, timeout=timeout).text, "lxml")
 
 
-def fetch_image(url, title, filename, count):
+def fetch_image(url, title, count):
     try:
         # download the image
         img_url = parse_url(url).find("div", class_="artwork").find("img")["src"]
         img_data = requests.get(img_url, headers=headers, timeout=10)
 
         # store the image
-        with open(filename, "wb") as f:
+        with open(title + ".jpg", "wb") as f:
             f.write(img_data.content)
+            lock.acquire()
+            dbHandler.store_bounding_box(title, url, False)
             count.value += 1
-            print("No.{count} {title}".format(count=count.value, title=title))
+            print("No.{} {}".format(count.value, title))
+            lock.release()
 
     except requests.exceptions.Timeout:
         print("Timeout when download: {}".format(title))
 
 
-def crawl(directory=dbHandler.paintings_dir, max_storage=10000):
+def crawl(directory=dbHandler.downloads_dir, max_storage=500, do_detection=True):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -54,14 +58,14 @@ def crawl(directory=dbHandler.paintings_dir, max_storage=10000):
             if title_info.find("span", class_="date"):
                 title_info.find("span", class_="date").extract()
 
-            # title should not be longer than 50 characters
-            title, filename = dbHandler.title_to_filename(title_info.get_text())
+            # only use the first 30 characters of the title to identify paintings
+            normed_title = dbHandler.normalize_title(title_info.get_text())
 
             # only download those haven't been done face detection
-            if not dbHandler.bbox_did_exist(title):
-                pool.apply_async(fetch_image, args=(url, title, filename, count))
+            if not dbHandler.bounding_box_did_exist(normed_title):
+                pool.apply_async(fetch_image, args=(url, normed_title, count))
             else:
-                print("Already exists: {}".format(title))
+                print("Already exists: {}".format(normed_title))
 
         pool.close()
         pool.join()
@@ -71,7 +75,8 @@ def crawl(directory=dbHandler.paintings_dir, max_storage=10000):
         print("Error in download: {}".format(e))
 
     finally:
-        detect(directory)
+        if do_detection:
+            detect(directory)
 
 
 if __name__ == "__main__":
