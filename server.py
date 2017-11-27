@@ -9,17 +9,14 @@ import numpy as np
 from comparator import retrieve_painting
 from dbHandler import index_to_filename
 import os
-import sys
-
-sys.path.append("/Users/lun/Desktop/ProjectX/neural-style-keras/")
-from fast_style_transfer import Transfer
+from transfer import StyleTransfer
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
 authenticationString = "PortableEmotionAnalysis"
 identityString = "PEAServer"
 tmp_dir = "/Users/lun/Desktop/ProjectX/temp/"
-transfer = Transfer("/Users/lun/Desktop/ProjectX/style118.h5")
+style_transfer = StyleTransfer("/Users/lun/Desktop/ProjectX/style118.h5")
 
 
 def print_with_date(content):
@@ -74,7 +71,7 @@ class MyServer(BaseHTTPRequestHandler):
 
                         print_with_date("Start transfer style: {}".format(style_id))
                         # style_id should subtract 1 before used as index, since the database starts indexing from 1
-                        transfer.style_transfer(photo_path, tmp_dir, style_id - 1)
+                        style_transfer(photo_path, tmp_dir, style_id - 1)
 
                         stylized = "{}_stylized_{}.png".format(self.headers["Timestamp"], index_to_filename(style_id))
                         if os.path.isfile(stylized):
