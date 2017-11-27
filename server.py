@@ -7,23 +7,19 @@ import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
 from comparator import retrieve_painting
-import subprocess
+from dbHandler import index_to_filename
 import os
+import sys
+
+sys.path.append("/Users/lun/Desktop/ProjectX/neural-style-keras/")
+from fast_style_transfer import Transfer
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
 authenticationString = "PortableEmotionAnalysis"
 identityString = "PEAServer"
 tmp_dir = "/Users/lun/Desktop/ProjectX/temp/"
-transfer_command = """
-/Users/lun/python27/bin/python \
-/Users/lun/Desktop/ProjectX/neural-style-keras/fast_style_transfer.py \
---checkpoint_path /Users/lun/Desktop/ProjectX/style118.h5 \
---input_path {} \
---output_path {} \
---use_style_name \
---gpu -1
-"""
+transfer = Transfer("/Users/lun/Desktop/ProjectX/style118.h5")
 
 
 def print_with_date(content):
@@ -77,18 +73,23 @@ class MyServer(BaseHTTPRequestHandler):
                         title = url[url.find("artworks/") + len("artworks/"): url.rfind("-")].replace("-", " ").title()
 
                         print_with_date("Start transfer style: {}".format(style_id))
-                        subprocess.call([transfer_command.format(photo_path, tmp_dir)], shell=True)
+                        # style_id should subtract 1 before used as index, since the database starts indexing from 1
+                        transfer.style_transfer(photo_path, tmp_dir, style_id - 1)
 
-                        stylized = "{}_stylized_{}.png".format(self.headers["Timestamp"], "00001")
-                        with open(stylized, "rb") as fp:
-                            self._set_headers(200, "application/octet-stream",
-                                              {"Image-URL": url,
-                                               "Image-Title": title})
-                            self.wfile.write(fp.read())
-
-                        print_with_date("Transfer finished")
-                        os.remove(stylized)
-
+                        stylized = "{}_stylized_{}.png".format(self.headers["Timestamp"], index_to_filename(style_id))
+                        if os.path.isfile(stylized):
+                            with open(stylized, "rb") as fp:
+                                self._set_headers(200, "application/octet-stream",
+                                                  {"Image-URL": url,
+                                                   "Image-Title": title})
+                                self.wfile.write(fp.read())
+    
+                            print_with_date("Transfer finished")
+                            os.remove(stylized)
+                        
+                        else:
+                            print_with_date("Stylized image not found: {}".format(stylized))
+                            self._set_headers(404)
                     else:
                         print_with_date("Photo not exist: {}".format(photo_path))
                         self._set_headers(404)
@@ -130,7 +131,7 @@ class MyServer(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    myServer = HTTPServer((hostName, hostPort), MyServer)
+    server = HTTPServer((hostName, hostPort), MyServer)
     ip = get_ip_address()
     print_with_date("Server starts - {}:{}".format(ip, hostPort))
 
@@ -143,11 +144,11 @@ if __name__ == "__main__":
     print_with_date("Multi-cast service registered - {}".format(txtRecord))
 
     try:
-        myServer.serve_forever()
+        server.serve_forever()
     except KeyboardInterrupt:
         print_with_date("Keyboard interrupt")
 
-    myServer.server_close()
+    server.server_close()
     print_with_date("Server stops - {}:{}".format(ip, hostPort))
 
     zeroconf.unregister_service(info)

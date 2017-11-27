@@ -77,6 +77,10 @@ def normalize_title(title):
     return normed_title.replace(" ", "_")
 
 
+def index_to_filename(index):
+    return str(index).zfill(5)
+
+
 def store_download_info(title, url):
     cursor.execute(insert_download, (title, url))
 

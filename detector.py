@@ -61,18 +61,18 @@ def detect(directory=dbHandler.downloads_dir):
                 url = dbHandler.retrieve_download_url(title)
 
                 if url:
-                    file_id = dbHandler.store_painting_info(url)
+                    painting_id = dbHandler.store_painting_info(url)
 
                     for idx, bbox in enumerate(faces):
                         scale_x = 100.0/(bbox.right() - bbox.left())
                         scale_y = 100.0/(bbox.bottom() - bbox.top())
                         landmarks = detect_face_landmark(img_data, bbox, scale_x, scale_y)
-                        dbHandler.store_landmarks(file_id, landmarks[17:],
+                        dbHandler.store_landmarks(painting_id, landmarks[17:],
                                                   (bbox.left(), bbox.right(),
                                                    bbox.bottom(), bbox.top()))
 
                     # move the image to paintings folder
-                    filename = str(file_id).zfill(5) + ".jpg"
+                    filename = dbHandler.index_to_filename(painting_id) + ".jpg"
                     shutil.move(directory + img_file, dbHandler.paintings_dir + filename)
 
                 else:
