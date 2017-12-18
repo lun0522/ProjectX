@@ -33,8 +33,10 @@ mysql> DESCRIBE Landmark;
 +-------------+---------+------+-----+---------+----------------+
 """
 
-downloads_dir = "/Users/lun/Desktop/ProjectX/downloads/"
-paintings_dir = "/Users/lun/Desktop/ProjectX/paintings/"
+downloads_dir, paintings_dir, predictor_path, model_dir, tmp_dir = \
+    map(lambda path: "/Users/lun/Desktop/ProjectX/" + path,
+        ["downloads/", "paintings/", "predictor.dat", "style118.h5", "temp/"])
+
 cnx = mysql.connector.connect(user="root",
                               password="password",
                               host="localhost",

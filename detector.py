@@ -6,10 +6,8 @@ from skimage import io
 import mysql.connector
 import shutil
 
-predictor_path = "/Users/lun/Desktop/ProjectX/shape_predictor_68_face_landmarks.dat"
-
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor(predictor_path)
+predictor = dlib.shape_predictor(dbHandler.predictor_path)
 
 
 def change_directory(directory=dbHandler.paintings_dir):

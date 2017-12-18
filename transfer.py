@@ -11,12 +11,12 @@ from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg16
 import h5py
 import yaml
-from scipy.misc import imsave
 from model import pastiche_model
+import time
 
 class StyleTransfer(object):
     def __init__(self, checkpoint_path):
-        config = tf.ConfigProto(device_count ={'GPU': 0})
+        config = tf.ConfigProto(device_count={"GPU": 0})
         session = tf.Session(config=config)
         K.set_session(session)
         
@@ -26,7 +26,7 @@ class StyleTransfer(object):
             model_args = yaml.load(f.attrs["args"])
             self.style_names = f.attrs["style_names"]
 
-        print("Creating pastiche model...")
+        self.print_with_date("Creating pastiche model...")
         class_targets = K.placeholder(shape=(None,), dtype=tf.int32)
         # Instantiate the model using information stored on tha yaml file
         pastiche_net = pastiche_model(None, width_factor=model_args.width_factor,
@@ -52,21 +52,24 @@ class StyleTransfer(object):
         return img
 
     def __call__(self, input_path, output_path, style_index):
-        print("Processing {}".format(input_path))
+        self.print_with_date("Processing {}".format(input_path))
 
         img = load_img(input_path)
         img = img_to_array(img)
         img = np.expand_dims(img, axis=0)
         img = vgg16.preprocess_input(img)
-        
-        out_name = os.path.splitext(os.path.split(input_path)[-1])[0]
+
         indices = style_index + np.arange(1)
         names = [self.style_names[style_index]]
         style_name = names[0].decode("UTF-8")
-        print("Using style {}".format(style_name))
+        self.print_with_date("Using style {}".format(style_name))
 
-        out = self.transfer_style([np.repeat(img, 1, axis=0), indices, 0.])[0]
+        output = self.transfer_style([np.repeat(img, 1, axis=0), indices, 0.])[0]
+        output_img = self.post_process_image(output[0][None, :, :, :].copy())
+        self.print_with_date("Transfer finished")
 
-        print("Saving file {}_style_{}.png".format(out_name, style_name))
-        imsave(os.path.join(output_path, "{}_stylized_{}.png".format(out_name, style_name)),
-               self.post_process_image(out[0][None, :, :, :].copy()))
+        return output_img
+
+    @staticmethod
+    def print_with_date(content):
+        print("{} {}".format(time.asctime(), content))

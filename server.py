@@ -7,16 +7,16 @@ import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
 from comparator import retrieve_painting
-from dbHandler import index_to_filename
+from dbHandler import model_dir, tmp_dir
 import os
+import subprocess
 from transfer import StyleTransfer
 
 hostName = ""  # if use "localhost", this server will only be accessible for the local machine
 hostPort = 8080
 authenticationString = "PortableEmotionAnalysis"
 identityString = "PEAServer"
-tmp_dir = "/Users/lun/Desktop/ProjectX/temp/"
-style_transfer = StyleTransfer("/Users/lun/Desktop/ProjectX/style118.h5")
+style_transfer = StyleTransfer(model_dir)
 
 
 def print_with_date(content):
@@ -69,24 +69,15 @@ class MyServer(BaseHTTPRequestHandler):
                         style_id, url = retrieve_painting(landmarks, face_image)
                         title = url[url.find("artworks/") + len("artworks/"): url.rfind("-")].replace("-", " ").title()
 
-                        print_with_date("Start transfer style: {}".format(style_id))
+                        print_with_date("Start transfer style {}".format(style_id))
                         # style_id should subtract 1 before used as index, since the database starts indexing from 1
-                        style_transfer(photo_path, tmp_dir, style_id - 1)
+                        stylized = Image.fromarray(style_transfer(photo_path, tmp_dir, style_id - 1))
+                        image_bytes = BytesIO()
+                        stylized.save(image_bytes, format="jpeg")
 
-                        stylized = "{}_stylized_{}.png".format(self.headers["Timestamp"], index_to_filename(style_id))
-                        if os.path.isfile(stylized):
-                            with open(stylized, "rb") as fp:
-                                self._set_headers(200, "application/octet-stream",
-                                                  {"Image-URL": url,
-                                                   "Image-Title": title})
-                                self.wfile.write(fp.read())
-    
-                            print_with_date("Transfer finished")
-                            os.remove(stylized)
-                        
-                        else:
-                            print_with_date("Stylized image not found: {}".format(stylized))
-                            self._set_headers(404)
+                        self._set_headers(200, "application/octet-stream", {"Image-URL": url, "Image-Title": title})
+                        self.wfile.write(image_bytes.getvalue())
+
                     else:
                         print_with_date("Photo not exist: {}".format(photo_path))
                         self._set_headers(404)
@@ -130,7 +121,7 @@ class MyServer(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     server = HTTPServer((hostName, hostPort), MyServer)
     ip = get_ip_address()
-    print_with_date("Server starts - {}:{}".format(ip, hostPort))
+    print_with_date("Server started - {}:{}".format(ip, hostPort))
 
     txtRecord = {"Identity": identityString,
                  "Address": "http://{}:{}".format(ip, hostPort)}
@@ -146,7 +137,10 @@ if __name__ == "__main__":
         print_with_date("Keyboard interrupt")
 
     server.server_close()
-    print_with_date("Server stops - {}:{}".format(ip, hostPort))
+    print_with_date("Server stopped - {}:{}".format(ip, hostPort))
+
+    subprocess.call(["cd {}; rm *".format(tmp_dir)], shell=True)
+    print_with_date("Temp folder cleared")
 
     zeroconf.unregister_service(info)
     zeroconf.close()
