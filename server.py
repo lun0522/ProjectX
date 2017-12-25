@@ -9,13 +9,18 @@ import numpy as np
 from comparator import retrieve_painting
 from dbHandler import model_dir, tmp_dir
 import os
+import requests
 import subprocess
 from transfer import StyleTransfer
 
-hostName = ""  # if use "localhost", this server will only be accessible for the local machine
-hostPort = 8080
-authenticationString = "PortableEmotionAnalysis"
-identityString = "PEAServer"
+host_name = ""  # if use "localhost", this server will only be accessible for the local machine
+host_port = 8080
+auth_string = "PortableEmotionAnalysis"
+id_string = "PEAServer"
+app_id = "OH4VbcK1AXEtklkhpkGCikPB-MdYXbMMI"
+app_key = "0azk0HxCkcrtNGIKC5BMwxnr"
+cloud_url = "https://us-api.leancloud.cn/1.1/classes/Server/5a40a4eee37d040044aa4733"
+
 style_transfer = StyleTransfer(model_dir)
 
 
@@ -27,6 +32,15 @@ def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     return s.getsockname()[0]
+
+
+def publish_address(address):
+    headers = {"X-LC-Id": app_id,
+               "X-LC-Key": app_key,
+               "Content-Type": "application/json"}
+    response = requests.put(cloud_url, headers=headers, json={"address": address})
+    if response.status_code != 200:
+        print_with_date("Failed in publishing server address: {}".format(response.reason))
 
 
 class MyServer(BaseHTTPRequestHandler):
@@ -42,7 +56,7 @@ class MyServer(BaseHTTPRequestHandler):
         start_time = time.time()
         print_with_date("Receive a POST request")
 
-        if "Authentication" in self.headers and self.headers["Authentication"] == authenticationString:
+        if "Authentication" in self.headers and self.headers["Authentication"] == auth_string:
             if "Operation" in self.headers and "Timestamp" in self.headers:
                 if self.headers["Operation"] == "Store":
                     content_length = int(self.headers["Content-Length"])
@@ -98,7 +112,7 @@ class MyServer(BaseHTTPRequestHandler):
         start_time = time.time()
         print_with_date("Receive a DELETE request")
 
-        if "Authentication" in self.headers and self.headers["Authentication"] == authenticationString:
+        if "Authentication" in self.headers and self.headers["Authentication"] == auth_string:
             if "Timestamp" in self.headers:
                 file_path = "{}{}.jpg".format(tmp_dir, self.headers["Timestamp"])
                 if os.path.isfile(file_path):
@@ -119,12 +133,14 @@ class MyServer(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = HTTPServer((hostName, hostPort), MyServer)
+    server = HTTPServer((host_name, host_port), MyServer)
     ip = get_ip_address()
-    print_with_date("Server started - {}:{}".format(ip, hostPort))
+    server_address = "http://{}:{}".format(ip, host_port)
+    publish_address(server_address)
+    print_with_date("Server started - " + server_address)
 
-    txtRecord = {"Identity": identityString,
-                 "Address": "http://{}:{}".format(ip, hostPort)}
+    txtRecord = {"Identity": id_string,
+                 "Address": server_address}
     info = ServiceInfo("_demox._tcp.local.", "server._demox._tcp.local.",
                        socket.inet_aton(ip), 0, properties=txtRecord)
     zeroconf = Zeroconf()
@@ -137,7 +153,7 @@ if __name__ == "__main__":
         print_with_date("Keyboard interrupt")
 
     server.server_close()
-    print_with_date("Server stopped - {}:{}".format(ip, hostPort))
+    print_with_date("Server stopped - " + server_address)
 
     subprocess.call(["cd {}; rm *".format(tmp_dir)], shell=True)
     print_with_date("Temp folder cleared")

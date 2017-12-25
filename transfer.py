@@ -62,7 +62,7 @@ class StyleTransfer(object):
         indices = style_index + np.arange(1)
         names = [self.style_names[style_index]]
         style_name = names[0].decode("UTF-8")
-        self.print_with_date("Using style {}".format(style_name))
+        self.print_with_date("Using style {}".format(int(style_name)))
 
         output = self.transfer_style([np.repeat(img, 1, axis=0), indices, 0.])[0]
         output_img = self.post_process_image(output[0][None, :, :, :].copy())
