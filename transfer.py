@@ -6,7 +6,7 @@ Use a trained pastiche net to stylize images.
 import os
 import numpy as np
 import tensorflow as tf
-import keras.backend as K
+import keras.backend as kb
 from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg16
 import h5py
@@ -14,11 +14,12 @@ import yaml
 from model import pastiche_model
 import time
 
+
 class StyleTransfer(object):
     def __init__(self, checkpoint_path):
         config = tf.ConfigProto(device_count={"GPU": 0})
         session = tf.Session(config=config)
-        K.set_session(session)
+        kb.set_session(session)
         
         # Strip the extension if there is one
         checkpoint_path = os.path.splitext(checkpoint_path)[0]
@@ -27,7 +28,7 @@ class StyleTransfer(object):
             self.style_names = f.attrs["style_names"]
 
         self.print_with_date("Creating pastiche model...")
-        class_targets = K.placeholder(shape=(None,), dtype=tf.int32)
+        class_targets = kb.placeholder(shape=(None,), dtype=tf.int32)
         # Instantiate the model using information stored on tha yaml file
         pastiche_net = pastiche_model(None, width_factor=model_args.width_factor,
                                       nb_classes=model_args.nb_classes,
@@ -35,9 +36,9 @@ class StyleTransfer(object):
         with h5py.File(checkpoint_path + ".h5", "r") as f:
             pastiche_net.load_weights_from_hdf5_group(f["model_weights"])
 
-        inputs = [pastiche_net.input, class_targets, K.learning_phase()]
+        inputs = [pastiche_net.input, class_targets, kb.learning_phase()]
 
-        self.transfer_style = K.function(inputs, [pastiche_net.output])
+        self.transfer_style = kb.function(inputs, [pastiche_net.output])
     
     @staticmethod
     def post_process_image(img):

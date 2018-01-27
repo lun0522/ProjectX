@@ -1,6 +1,6 @@
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
-from dbHandler import get_all_landmarks, retrieve_painting_url
+from dbHandler import get_all_landmarks
 from PIL import Image
 import itertools
 
@@ -71,11 +71,11 @@ all_landmarks = get_all_landmarks()
 train_data = np.array([list(itertools.chain.from_iterable(points))
                        for points in [row[2] for row in all_landmarks]])
 # specify the metric to use and number of neighbors to retrieve
-neighbors = NearestNeighbors(metric="euclidean", n_neighbors=1).fit(train_data)
+neighbors = NearestNeighbors(metric="euclidean", n_neighbors=3).fit(train_data)
 
 
 def knn_search(target):
-    return neighbors.kneighbors(target)[1][0][0]
+    return neighbors.kneighbors(target, return_distance=False)[0]
 
 
 def affine_transform(landmarks, face_image, output_size):
@@ -105,12 +105,7 @@ def retrieve_painting(landmarks, face_image):
     # TODO: modify the searching method
     # aligned_landmarks, aligned_image = affine_transform(landmarks, face_image, (256, 256))
 
-    style_id = all_landmarks[knn_search([np.array([(x*100.0/face_image.size[0],
-                                                    y*100.0/face_image.size[1])
-                                                   for x, y in landmarks[17:]]).flatten()])][0]
-    url = retrieve_painting_url(style_id)
-    if url:
-        return style_id, url
-    else:
-        print("Error in retrieving style id {}".format(style_id))
-        return None
+    return [(all_landmarks[idx][0], all_landmarks[idx][1])
+            for idx in knn_search([np.array([(x*100.0/face_image.size[0],
+                                              y*100.0/face_image.size[1])
+                                             for x, y in landmarks[17:]]).flatten()])]

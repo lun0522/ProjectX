@@ -59,10 +59,6 @@ insert_painting = " ".join(("INSERT INTO Painting",
                             "(url)",
                             "VALUES (%s)"))
 
-query_painting = " ".join(("SELECT url",
-                           "FROM Painting",
-                           "WHERE id=%s"))
-
 insert_landmark = " ".join(("INSERT INTO Landmark",
                             "(painting_id, bbox, points)",
                             "VALUES (%s, %s, %s)"))
@@ -79,8 +75,8 @@ def normalize_title(title):
     return normed_title.replace(" ", "_")
 
 
-def index_to_filename(index):
-    return str(index).zfill(5)
+def get_painting_filename(index):
+    return paintings_dir + str(index).zfill(5) + ".jpg"
 
 
 def store_download_info(title, url):
@@ -99,11 +95,6 @@ def retrieve_download_url(title):
 def store_painting_info(url):
     cursor.execute(insert_painting, (url,))
     return cursor.lastrowid
-
-
-def retrieve_painting_url(painting_id):
-    cursor.execute(query_painting, (painting_id, ))
-    return cursor.rowcount and [url for (url, ) in cursor][0] or None
 
 
 def store_landmarks(painting_id, landmarks, bounding_box):

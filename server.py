@@ -7,11 +7,12 @@ import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
 from comparator import retrieve_painting
-from dbHandler import model_dir, tmp_dir
+from dbHandler import model_dir, tmp_dir, get_painting_filename
 import os
 import requests
 import subprocess
 from transfer import StyleTransfer
+import json
 
 host_name = ""  # if use "localhost", this server will only be accessible for the local machine
 host_port = 8080
@@ -20,6 +21,7 @@ id_string = "PEAServer"
 app_id = "OH4VbcK1AXEtklkhpkGCikPB-MdYXbMMI"
 app_key = "0azk0HxCkcrtNGIKC5BMwxnr"
 cloud_url = "https://us-api.leancloud.cn/1.1/classes/Server/5a40a4eee37d040044aa4733"
+valid_operations = {"Store", "Delete", "Retrieve", "Transfer"}
 
 style_transfer = StyleTransfer(model_dir)
 
@@ -56,54 +58,68 @@ class MyServer(BaseHTTPRequestHandler):
         start_time = time.time()
         print_with_date("Receive a POST request")
 
-        if "Authentication" in self.headers and self.headers["Authentication"] == auth_string:
-            if "Operation" in self.headers and "Timestamp" in self.headers:
-                if self.headers["Operation"] == "Store":
-                    content_length = int(self.headers["Content-Length"])
-                    photo = Image.open(BytesIO(self.rfile.read(content_length)))
-
-                    # currently set a limit to the length of the longer side of the photo
-                    limit = 500
-                    if photo.size[0] > limit or photo.size[1] > limit:
-                        ratio = max(photo.size[0], photo.size[1]) / limit
-                        photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
-
-                    photo.save("{}{}.jpg".format(tmp_dir, self.headers["Timestamp"]))
-                    self._set_headers(200)
-
-                elif self.headers["Operation"] == "Transfer":
-                    os.chdir(tmp_dir)
-                    photo_path = "{}.jpg".format(self.headers["Timestamp"])
-                    if os.path.isfile(photo_path):
-                        content_length = int(self.headers["Content-Length"])
-                        face_image = Image.open(BytesIO(self.rfile.read(content_length)))
-
-                        landmarks = detect_face_landmark(np.array(face_image),
-                                                         create_rect(0, 0, face_image.size[0], face_image.size[1]))
-                        style_id, url = retrieve_painting(landmarks, face_image)
-                        title = url[url.find("artworks/") + len("artworks/"): url.rfind("-")].replace("-", " ").title()
-
-                        print_with_date("Start transfer style {}".format(style_id))
-                        # style_id should subtract 1 before used as index, since the database starts indexing from 1
-                        stylized = Image.fromarray(style_transfer(photo_path, tmp_dir, style_id - 1))
-                        image_bytes = BytesIO()
-                        stylized.save(image_bytes, format="jpeg")
-
-                        self._set_headers(200, "application/octet-stream", {"Image-URL": url, "Image-Title": title})
-                        self.wfile.write(image_bytes.getvalue())
-
-                    else:
-                        print_with_date("Photo not exist: {}".format(photo_path))
-                        self._set_headers(404)
-                else:
-                    print_with_date("Unknown operation: {}".format(self.headers["Operation"]))
-                    self._set_headers(400)
-            else:
-                print_with_date("No operation provided")
-                self._set_headers(400)
-        else:
+        if "Authentication" not in self.headers or self.headers["Authentication"] != auth_string:
             print_with_date("Not authenticated")
             self._set_headers(401)
+
+        elif "Operation" not in self.headers or self.headers["Operation"] not in valid_operations:
+            print_with_date("No operation / Invalid operation")
+            self._set_headers(400)
+
+        elif self.headers["Operation"] == "Store":
+            content_length = int(self.headers["Content-Length"])
+            photo = Image.open(BytesIO(self.rfile.read(content_length)))
+
+            # currently set a limit to the length of the longer side of the photo
+            limit = 500
+            if photo.size[0] > limit or photo.size[1] > limit:
+                ratio = max(photo.size[0], photo.size[1]) / limit
+                photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
+
+            photo.save("{}{}.jpg".format(tmp_dir, self.headers["Timestamp"]))
+            self._set_headers(200)
+
+        elif self.headers["Operation"] == "Retrieve":
+            content_length = int(self.headers["Content-Length"])
+            face_image = Image.open(BytesIO(self.rfile.read(content_length)))
+
+            landmarks = detect_face_landmark(np.array(face_image),
+                                             create_rect(0, 0, face_image.size[0], face_image.size[1]))
+            image_info, image_bytes = [], BytesIO()
+            for pid, bbox in retrieve_painting(landmarks, face_image):
+                prev_len = len(image_bytes.getvalue())
+                original = Image.open(get_painting_filename(pid))
+                original.save(image_bytes, format="jpeg")
+                mid_len = len(image_bytes.getvalue())
+                cropped = original.crop((bbox[0], bbox[3], bbox[1], bbox[2]))
+                cropped.save(image_bytes, format="jpeg")
+                image_info.append({
+                    "Painting-Id": pid,
+                    "Painting-Length": mid_len - prev_len,
+                    "Portrait-Length": len(image_bytes.getvalue()) - mid_len,
+                })
+
+            self._set_headers(200, "application/octet-stream", {"Image-Info": json.dumps(image_info)})
+            self.wfile.write(image_bytes.getvalue())
+
+        elif self.headers["Operation"] == "Transfer":
+            os.chdir(tmp_dir)
+            photo_path = "{}.jpg".format(self.headers["Photo-Timestamp"])
+            if os.path.isfile(photo_path):
+                style_id = int(self.headers["Style-Id"])
+                print_with_date("Start transfer style {}".format(style_id))
+
+                # style_id should subtract 1 before used as index, since the database starts indexing from 1
+                stylized = Image.fromarray(style_transfer(photo_path, tmp_dir, style_id - 1))
+                image_bytes = BytesIO()
+                stylized.save(image_bytes, format="jpeg")
+
+                self._set_headers(200, "application/octet-stream")
+                self.wfile.write(image_bytes.getvalue())
+
+        else:
+            print_with_date("Shouldn't reach here")
+            self._set_headers(404)
 
         print_with_date("Response sent")
         print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))

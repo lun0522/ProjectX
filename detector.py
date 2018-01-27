@@ -70,8 +70,7 @@ def detect(directory=dbHandler.downloads_dir):
                                                    bbox.bottom(), bbox.top()))
 
                     # move the image to paintings folder
-                    filename = dbHandler.index_to_filename(painting_id) + ".jpg"
-                    shutil.move(directory + img_file, dbHandler.paintings_dir + filename)
+                    shutil.move(directory + img_file, dbHandler.get_painting_filename(painting_id))
 
                 else:
                     print("No record in database: {}".format(img_file))
