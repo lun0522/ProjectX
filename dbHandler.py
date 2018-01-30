@@ -33,9 +33,9 @@ mysql> DESCRIBE Landmark;
 +-------------+---------+------+-----+---------+----------------+
 """
 
-downloads_dir, paintings_dir, predictor_path, model_dir, tmp_dir = \
-    map(lambda path: "/Users/lun/Desktop/ProjectX/" + path,
-        ["downloads/", "paintings/", "predictor.dat", "style118.h5", "temp/"])
+downloads_dir, paintings_dir, tmp_dir, predictor_path, model_dir = \
+    ["/Users/lun/Desktop/ProjectX/" + path for path in
+     ["downloads/", "paintings/", "temp/", "predictor.dat", "style118.h5"]]
 
 cnx = mysql.connector.connect(user="root",
                               password="password",

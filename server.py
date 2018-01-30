@@ -67,17 +67,22 @@ class MyServer(BaseHTTPRequestHandler):
             self._set_headers(400)
 
         elif self.headers["Operation"] == "Store":
-            content_length = int(self.headers["Content-Length"])
-            photo = Image.open(BytesIO(self.rfile.read(content_length)))
+            if "Photo-Timestamp" not in self.headers:
+                print_with_date("No timestamp provided")
+                self._set_headers(400)
 
-            # currently set a limit to the length of the longer side of the photo
-            limit = 500
-            if photo.size[0] > limit or photo.size[1] > limit:
-                ratio = max(photo.size[0], photo.size[1]) / limit
-                photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
+            else:
+                content_length = int(self.headers["Content-Length"])
+                photo = Image.open(BytesIO(self.rfile.read(content_length)))
 
-            photo.save("{}{}.jpg".format(tmp_dir, self.headers["Timestamp"]))
-            self._set_headers(200)
+                # currently set a limit to the length of the longer side of the photo
+                limit = 720
+                if photo.size[0] > limit or photo.size[1] > limit:
+                    ratio = max(photo.size[0], photo.size[1]) / limit
+                    photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
+
+                photo.save("{}{}.jpg".format(tmp_dir, self.headers["Photo-Timestamp"]))
+                self._set_headers(200)
 
         elif self.headers["Operation"] == "Retrieve":
             content_length = int(self.headers["Content-Length"])
@@ -128,21 +133,22 @@ class MyServer(BaseHTTPRequestHandler):
         start_time = time.time()
         print_with_date("Receive a DELETE request")
 
-        if "Authentication" in self.headers and self.headers["Authentication"] == auth_string:
-            if "Timestamp" in self.headers:
-                file_path = "{}{}.jpg".format(tmp_dir, self.headers["Timestamp"])
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-                    print_with_date("{} removed".format(file_path))
-                else:
-                    print_with_date("{} not exists".format(file_path))
-                self._set_headers(200)
-            else:
-                print_with_date("No timestamp provided")
-                self._set_headers(400)
-        else:
+        if "Authentication" not in self.headers or self.headers["Authentication"] != auth_string:
             print_with_date("Not authenticated")
             self._set_headers(401)
+
+        elif "Photo-Timestamp" not in self.headers:
+            print_with_date("No timestamp provided")
+            self._set_headers(400)
+
+        else:
+            file_path = "{}{}.jpg".format(tmp_dir, self.headers["Photo-Timestamp"])
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print_with_date("{} removed".format(file_path))
+            else:
+                print_with_date("{} not exists".format(file_path))
+            self._set_headers(200)
 
         print_with_date("Response sent")
         print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
