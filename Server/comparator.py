@@ -48,10 +48,10 @@ transform_base = np.array([36, 45, 57])  # outer eyes and bottom lips
 # "landmark name": (start_index, index_range, weight)
 landmark_map = {
     "eyebrow"  : ( 0, 10, 1),
-    "noseCrest": (10,  4, 1),
-    "nose"     : (14,  5, 1),
+    "noseCrest": (10,  4, 0),
+    "nose"     : (14,  5, 0),
     "eye"      : (19, 12, 1),
-    "lips"     : (31, 20, 1),
+    "lips"     : (31, 20, 2),
 }
 
 
@@ -71,7 +71,7 @@ all_landmarks = get_all_landmarks()
 train_data = np.array([list(itertools.chain.from_iterable(points))
                        for points in [row[2] for row in all_landmarks]])
 # specify the metric to use and number of neighbors to retrieve
-neighbors = NearestNeighbors(metric="euclidean", n_neighbors=3).fit(train_data)
+neighbors = NearestNeighbors(metric=metric, n_neighbors=3).fit(train_data)
 
 
 def knn_search(target):
@@ -102,9 +102,6 @@ def affine_transform(landmarks, face_image, output_size):
 
 
 def retrieve_painting(landmarks, face_image):
-    # TODO: modify the searching method
-    # aligned_landmarks, aligned_image = affine_transform(landmarks, face_image, (256, 256))
-
     return [(all_landmarks[idx][0], all_landmarks[idx][1])
             for idx in knn_search([np.array([(x*100.0/face_image.size[0],
                                               y*100.0/face_image.size[1])

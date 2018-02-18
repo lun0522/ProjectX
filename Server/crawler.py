@@ -34,14 +34,14 @@ def fetch_image(url, title, count):
         print("Timeout when download: {}".format(title))
 
 
-def crawl(directory=dbHandler.downloads_dir, max_storage=500, do_detection=True):
+def crawl(directory=dbHandler.downloads_dir, max_storage=10000, do_detection=True):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
     os.chdir(directory)
 
     # view paintings as grids
-    max_page = int(max_storage/20)
+    max_page = max_storage // 20
     grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid/page/{}".format(max_page), timeout=1000)
     all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
 
