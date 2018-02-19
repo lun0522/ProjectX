@@ -13,7 +13,22 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     static let sharedInstance = PEAServer()
     
     enum Operation {
-        case Store, Delete, Retrieve, Transfer
+        
+        case store, delete, retrieve, transfer
+        
+        private func toString() -> String {
+            switch self {
+            case .store:
+                return "Store"
+            case .delete:
+                return "Delete"
+            case .retrieve:
+                return "Retrieve"
+            case .transfer:
+                return "Transfer"
+            }
+        }
+        
     }
     
     private static let kServerAuthentication = "PEAServer"
@@ -24,12 +39,6 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     private static let kLeanCloudAppKey = "0azk0HxCkcrtNGIKC5BMwxnr"
     private static let kLeanCloudObjectId = "5a40a4eee37d040044aa4733"
     private static let kClientAuthentication = "PortableEmotionAnalysis"
-    private static let kServerOperationDict = [
-        Operation.Store: "Store",
-        Operation.Delete: "Delete",
-        Operation.Retrieve: "Retrieve",
-        Operation.Transfer: "Transfer",
-        ]
     
     private var serviceBrowser: NetServiceBrowser?
     private var resolverList: [NetService]?
@@ -38,6 +47,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     override private init() {
         super.init()
         searchForServerInLAN()
+        queryServerAddress()
     }
     
     private func log(_ message: String) {
@@ -47,28 +57,28 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     // MARK: - NSNetServiceBrowser
     
     private func searchForServerInLAN() {
-        if serviceBrowser == nil {
-            serviceBrowser = NetServiceBrowser.init()
-        }
         if resolverList == nil {
             resolverList = []
         }
-        serviceBrowser!.delegate = self
-        serviceBrowser!.searchForServices(ofType: PEAServer.kServerType,
-                                          inDomain: PEAServer.kServerDomain)
+        if serviceBrowser == nil {
+            serviceBrowser = NetServiceBrowser.init()
+            serviceBrowser!.delegate = self
+            serviceBrowser!.searchForServices(ofType: PEAServer.kServerType,
+                                              inDomain: PEAServer.kServerDomain)
+        }
         log("Start browsing for services")
     }
     
     internal func netServiceBrowser(_ browser: NetServiceBrowser,
                                    didFind service: NetService,
                                    moreComing: Bool) {
-        guard resolverList != nil else {
+        if var list = resolverList {
+            service.delegate = self
+            service.resolve(withTimeout: 10.0)
+            list.append(service)
+        } else {
             log("Error: Resolver list does not exist when a service is found")
-            return
         }
-        resolverList!.append(service)
-        service.delegate = self
-        service.resolve(withTimeout: 10.0)
     }
     
     internal func netServiceBrowser(_ browser: NetServiceBrowser,
@@ -78,13 +88,13 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     }
     
     private func stopBrowsing() {
-        if serviceBrowser != nil {
-            serviceBrowser!.stop()
-            serviceBrowser!.delegate = nil
+        if let browser = serviceBrowser {
+            browser.stop()
+            browser.delegate = nil
             serviceBrowser = nil
         }
-        if resolverList != nil {
-            for resolver in resolverList! {
+        if let list = resolverList {
+            for resolver in list {
                 removeResolver(resolver, atEvent: "stop browsing")
             }
             resolverList = nil
@@ -113,10 +123,9 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         if let addressData = txtRecord["Address"] {
             serverAddress = String.init(data: addressData, encoding: String.Encoding.utf8)
             stopBrowsing()
-            log("Use address: " + serverAddress!)
+            log("Found server in LAN: " + serverAddress!)
         } else {
             log("\(sender) does not contain server address")
-            return
         }
     }
     
@@ -128,13 +137,67 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     private func removeResolver(_ resolver: NetService, atEvent event: String) {
         resolver.stop()
         resolver.delegate = nil
-        guard resolverList != nil else {
+        if var list = resolverList {
+            if let index = list.index(of: resolver) {
+                list.remove(at: index)
+            }
+        } else {
             log("Error: Resolver list does not exist when " + event)
-            return
         }
-        if let index = resolverList!.index(of: resolver) {
-            resolverList!.remove(at: index)
+    }
+    
+    // MARK: - HTTP requests
+    
+    private func queryServerAddress() {
+        var request = URLRequest.init(url: URL.init(string: PEAServer.kLeanCloudUrl)!,
+                                      cachePolicy: NSURLRequest.CachePolicy.reloadIgnoringCacheData,
+                                      timeoutInterval: 10.0)
+        request.httpMethod = "GET"
+        for (value, field) in [
+            "X-LC-Id" : PEAServer.kLeanCloudAppId,
+            "X-LC-Key" : PEAServer.kLeanCloudAppKey,
+            "Content-Type" : "application/json",
+            ] {
+            request.setValue(value, forHTTPHeaderField: field)
         }
+        let session = URLSession.init(configuration: URLSessionConfiguration.default)
+        let task = session.dataTask(with: request) {
+            (data, response, error) in
+            guard error == nil else {
+                self.log("Error in requesting server address: " + error!.localizedDescription)
+                return
+            }
+            guard let _ = data else {
+                self.log("Error: No data returned when querying for server address")
+                return
+            }
+            var info: [String : Any]?
+            do {
+                info = try JSONSerialization.jsonObject(with: data!, options: []) as? [String : Any]
+            } catch {
+                self.log("Error in converting JSON: \(error.localizedDescription)")
+            }
+            guard let _ = info else {
+                self.log("Error: Response of query cannot be converted to dictionary")
+                return
+            }
+            let results = info!["results"] as? [[String : String]]
+            guard let _ = results else {
+                self.log("Error: Response of query contains no result")
+                return
+            }
+            guard self.serverAddress == nil else {
+                return
+            }
+            if let address = results![0]["address"] {
+                self.serverAddress = address
+                self.log("Found server through internet: " + address)
+                self.stopBrowsing()
+            } else {
+                self.log("Error: Response of query contains no address")
+            }
+        }
+        task.resume()
     }
     
 }
