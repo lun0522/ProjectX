@@ -9,6 +9,6 @@
 enum EMAError: Error {
     case sendDataError(String)
     case faceDetectionError(String)
-    case faceLandmarksDetectionError(String)
     case faceTrackingError(String)
+    case faceLandmarksDetectionError(String)
 }

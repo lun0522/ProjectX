@@ -19,20 +19,20 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         case transfer = "Transfer"
     }
     
-    private static let kServerAuthentication = "PEAServer"
-    private static let kServerType = "_demox._tcp."
-    private static let kServerDomain = "local."
-    private static let kLeanCloudUrl = "https://us-api.leancloud.cn/1.1/classes/Server"
-    private static let kLeanCloudAppId = "OH4VbcK1AXEtklkhpkGCikPB-MdYXbMMI"
-    private static let kLeanCloudAppKey = "0azk0HxCkcrtNGIKC5BMwxnr"
-    private static let kLeanCloudObjectId = "5a40a4eee37d040044aa4733"
-    private static let kClientAuthentication = "PortableEmotionAnalysis"
+    static let kServerAuthentication = "PEAServer"
+    static let kServerType = "_demox._tcp."
+    static let kServerDomain = "local."
+    static let kLeanCloudUrl = "https://us-api.leancloud.cn/1.1/classes/Server"
+    static let kLeanCloudAppId = "OH4VbcK1AXEtklkhpkGCikPB-MdYXbMMI"
+    static let kLeanCloudAppKey = "0azk0HxCkcrtNGIKC5BMwxnr"
+    static let kLeanCloudObjectId = "5a40a4eee37d040044aa4733"
+    static let kClientAuthentication = "PortableEmotionAnalysis"
     
     private var serviceBrowser: NetServiceBrowser?
     private var resolverList: [NetService]?
     private var serverAddress: String?
     
-    override private init() {
+    override init() {
         super.init()
         searchForServerInLAN()
         queryServerAddress()
@@ -167,6 +167,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                 info = try JSONSerialization.jsonObject(with: data!, options: []) as? Dictionary
             } catch {
                 self.log("Error in converting JSON after query: \(error.localizedDescription)")
+                return
             }
             // info["results"] -> results: [[String : String]]
             let results = info!["results"] as? [[String : String]]
@@ -232,6 +233,17 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                 
                 // handle response
                 switch operation {
+                case .store, .delete:
+                    var info: [String : Any]?
+                    if let _ = data {
+                        do {
+                            info = try JSONSerialization.jsonObject(with: data!, options: []) as? Dictionary
+                        } catch {
+                            self.log("Error in converting JSON after \(operation): \(error.localizedDescription)")
+                            return
+                        }
+                    }
+                    responseHandler(info, nil)
                 case .retrieve:
                     guard let _ = data else {
                         responseHandler(nil, EMAError.sendDataError("Error: No data returned after retrieving"))
@@ -249,16 +261,6 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                         return
                     }
                     responseHandler(["data" : data!], nil)
-                default:
-                    var info: [String : Any]?
-                    if let _ = data {
-                        do {
-                            info = try JSONSerialization.jsonObject(with: data!, options: []) as? Dictionary
-                        } catch {
-                            self.log("Error in converting JSON after \(operation): \(error.localizedDescription)")
-                        }
-                    }
-                    responseHandler(info, nil)
                 }
         }
         task.resume()

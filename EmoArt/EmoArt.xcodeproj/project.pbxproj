@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */; };
 		BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4C66B4203B42110097BC0F /* EMAError.swift */; };
 		BD94E12E203950420058C11D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E12D203950420058C11D /* AppDelegate.swift */; };
 		BD94E130203950420058C11D /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E12F203950420058C11D /* ViewController.swift */; };
@@ -36,6 +37,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDetector.swift; sourceTree = "<group>"; };
 		BD4C66B4203B42110097BC0F /* EMAError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMAError.swift; sourceTree = "<group>"; };
 		BD94E12A203950420058C11D /* EmoArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EmoArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD94E12D203950420058C11D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -104,6 +106,7 @@
 				BD94E12D203950420058C11D /* AppDelegate.swift */,
 				BD94E12F203950420058C11D /* ViewController.swift */,
 				BD94E15B203950710058C11D /* PEAServer.swift */,
+				BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */,
 				BD4C66B4203B42110097BC0F /* EMAError.swift */,
 				BD94E131203950420058C11D /* Main.storyboard */,
 				BD94E134203950420058C11D /* Assets.xcassets */,
@@ -267,6 +270,7 @@
 			files = (
 				BD94E130203950420058C11D /* ViewController.swift in Sources */,
 				BD94E12E203950420058C11D /* AppDelegate.swift in Sources */,
+				BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */,
 				BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */,
 				BD94E15C203950710058C11D /* PEAServer.swift in Sources */,
 			);
