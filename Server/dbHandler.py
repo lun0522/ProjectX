@@ -1,5 +1,4 @@
 import mysql.connector
-import re
 import json
 
 """
@@ -67,14 +66,6 @@ query_landmarks = " ".join(("SELECT painting_id, bbox, points",
                             "FROM Landmark"))
 
 
-def normalize_title(title):
-    # any non-alphanumeric character will be replaced
-    normed_title = re.sub("[^0-9a-zA-Z]+", " ", title.strip()).strip()
-    if len(normed_title) > 30:
-        normed_title = normed_title[0:30].strip()
-    return normed_title.replace(" ", "_")
-
-
 def get_painting_filename(index):
     return paintings_dir + str(index).zfill(5) + ".jpg"
 
@@ -87,13 +78,18 @@ def remove_redundant_info(title):
     cursor.execute(update_download, (None, title))
 
 
+def did_not_download(title):
+    cursor.execute(query_download, (title,))
+    return not cursor.rowcount
+
+
 def retrieve_download_url(title):
     cursor.execute(query_download, (title, ))
-    return cursor.rowcount and [url for (url,) in cursor][0] or None
+    return cursor.rowcount and [url for (url, ) in cursor][0] or None
 
 
 def store_painting_info(url):
-    cursor.execute(insert_painting, (url,))
+    cursor.execute(insert_painting, (url, ))
     return cursor.lastrowid
 
 

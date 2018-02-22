@@ -40,7 +40,7 @@ def detect(directory=dbHandler.downloads_dir):
     try:
         for img_file in sorted(glob.glob("*.jpg")):
             # some images are downloaded, but have invalid file size
-            # those < 10KB will be deleted
+            # those < 10KB will be deleted, but the url will be preserved in the Download table
             if os.path.getsize(img_file) < 10240:
                 print("Invalid file size: {}".format(img_file))
                 os.remove(img_file)

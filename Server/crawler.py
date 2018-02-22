@@ -1,11 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
-from multiprocessing import Lock, Pool, Manager
+from multiprocessing import Manager
 import os
 from detector import detect
 import dbHandler
 
-lock = Lock()  # used for operating the database after each download
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "AppleWebKit/537.1 (KHTML, like Gecko) "
                          "Chrome/22.0.1207.1 Safari/537.1"}
@@ -15,7 +14,8 @@ def parse_url(url, timeout=10):
     return BeautifulSoup(requests.get(url, headers=headers, timeout=timeout).text, "lxml")
 
 
-def fetch_image(url, title, count):
+def fetch_image(params):
+    url, title, count = params
     try:
         # download the image
         img_url = parse_url(url).find("div", class_="artwork").find("img")["src"]
@@ -24,17 +24,16 @@ def fetch_image(url, title, count):
         # store the image
         with open(title + ".jpg", "wb") as f:
             f.write(img_data.content)
-            lock.acquire()
-            dbHandler.store_download_info(title, url[:url.find("/view_as")])
             count.value += 1
             print("No.{} {}".format(count.value, title))
-            lock.release()
+            return title, url[:url.rfind("/view_as")]
 
     except requests.exceptions.Timeout:
         print("Timeout when download: {}".format(title))
+        return None, None
 
 
-def crawl(directory=dbHandler.downloads_dir, max_storage=10000, do_detection=True):
+def crawl(directory=dbHandler.downloads_dir, max_storage=4500, do_detection=True):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -47,7 +46,8 @@ def crawl(directory=dbHandler.downloads_dir, max_storage=10000, do_detection=Tru
 
     try:
         # download paintings
-        pool = Pool()
+        will_fetch = []
+        pool = Manager().Pool()
         count = Manager().Value("d", 0)
 
         for li in all_li:
@@ -58,25 +58,32 @@ def crawl(directory=dbHandler.downloads_dir, max_storage=10000, do_detection=Tru
             if title_info.find("span", class_="date"):
                 title_info.find("span", class_="date").extract()
 
-            # only use the first 30 characters of the title to identify paintings
-            normed_title = dbHandler.normalize_title(title_info.get_text())
+            # truncate title if necessary (max length of file name is 255)
+            title = url[url.find("artworks/") + 9: url.rfind("/view_as")]
+            if len(title) > 251:
+                print("Title is too long, will be truncated: " + title)
+                title = title[:251]
 
             # only download those haven't been seen before
-            if not dbHandler.retrieve_download_url(normed_title):
-                pool.apply_async(fetch_image, args=(url, normed_title, count))
+            if dbHandler.did_not_download(title):
+                will_fetch.append((url, title, count))
             else:
-                print("Already exists: {}".format(normed_title))
+                print("Already exists: {}".format(title))
 
-        pool.close()
-        pool.join()
+        for title, url in pool.map_async(fetch_image, will_fetch).get():
+            if title and url:
+                dbHandler.store_download_info(title, url)
         print("Download finished.")
 
     except Exception as e:
         print("Error in download: {}".format(e))
 
     finally:
+        dbHandler.commit_change()
         if do_detection:
             detect(directory)
+        else:
+            dbHandler.cleanup()
 
 
 if __name__ == "__main__":
