@@ -22,46 +22,126 @@ class LocalDetector: NSObject {
         case foundByTracking(CGRect)
     }
     
-    private let faceDetection: VNDetectFaceRectanglesRequest = VNDetectFaceRectanglesRequest.init()
-    private let landmarksDetection: VNDetectFaceLandmarksRequest = VNDetectFaceLandmarksRequest.init()
+    private let faceDetection = VNDetectFaceRectanglesRequest()
+    private let landmarksDetection = VNDetectFaceLandmarksRequest()
     private var lastObservation: VNFaceObservation?
-    private var faceTracking: VNTrackObjectRequest?
-    private let faceDetectionRequest: VNSequenceRequestHandler = VNSequenceRequestHandler.init()
-    private let landmarksDetectionRequest: VNSequenceRequestHandler = VNSequenceRequestHandler.init()
-    private var faceTrackingRequest: VNSequenceRequestHandler?
-    private var timestamp: TimeInterval = Date.init().timeIntervalSince1970
-    private var tracking: Bool = false
+    private let faceDetectionRequest = VNSequenceRequestHandler()
+    private let landmarksDetectionRequest = VNSequenceRequestHandler()
+    private var faceTrackingRequest = VNSequenceRequestHandler()
+    private var faceHandler: ((DetectionResult?, EMAError?) -> Swift.Void)?
+    private var landmarksHandler: (([CGPoint]?, EMAError?) -> Swift.Void)?
+    private var timestamp: TimeInterval = Date().timeIntervalSince1970
+    private var tracking = false
     
     public func detectFace(inImage image: CIImage,
-                           faceDetectionResultHandler: @escaping (DetectionResult) -> Swift.Void,
-                           landmarksDetectionResultHandler: @escaping ([NSValue]?, Error) -> Swift.Void) {
+                           faceDetectionResultHandler: @escaping (DetectionResult?, EMAError?) -> Swift.Void,
+                           landmarksDetectionResultHandler: @escaping ([CGPoint]?, EMAError?) -> Swift.Void) {
+        faceHandler = faceDetectionResultHandler
+        landmarksHandler = landmarksDetectionResultHandler
+    }
+    
+    private func faceDetectionFail(with error: EMAError) {
+        if let handler = faceHandler {
+            handler(nil, error)
+            faceHandler = nil
+        }
+    }
+    
+    private func landmarksDetectionFail(with error: EMAError) {
+        if let handler = landmarksHandler {
+            handler(nil, error)
+            landmarksHandler = nil
+        }
+    }
+    
+    private func detectFace(inImage image: CIImage) {
         
     }
     
-    private func detectFace(inImage image: CIImage,
-                            resultHandler: @escaping (DetectionResult) -> Swift.Void) {
+    private func trackFace(inImage image: CIImage) {
+        guard let lastObservation = self.lastObservation else {
+            faceDetectionFail(with: .faceTrackingError("No face observation"))
+            return
+        }
         
-    }
-    
-    private func trackFace(inImage image: CIImage,
-                           resultHandler: @escaping (DetectionResult) -> Swift.Void) {
+        // The default tracking level of VNTrackObjectRequest is .fast,
+        // which results that the confidence is either 0.0 or 1.0.
+        // For more precise results, it should be set to .accurate,
+        // so that the confidence floats between 0.0 and 1.0
+        let faceTracking = VNTrackObjectRequest(
+            detectedObjectObservation: lastObservation,
+            completionHandler: {
+                (request, error) in
+                var didFindFace = false
+                defer {
+                    // https://stackoverflow.com/a/46355234/7873124
+                    // Re-instantiate the request handler if the face is lost
+                    if didFindFace == false {
+                        self.faceTrackingRequest = VNSequenceRequestHandler()
+                    }
+                }
+                
+                guard error == nil else {
+                    self.faceDetectionFail(with: .faceTrackingError(error!.localizedDescription))
+                    return
+                }
+                guard let results = request.results, results.count > 0 else {
+                    self.faceDetectionFail(with: .faceTrackingError("No face"))
+                    return
+                }
+                guard let observation = results[0] as? VNFaceObservation else {
+                    self.faceDetectionFail(with: .faceTrackingError("Wrong type"))
+                    return
+                }
+                didFindFace = true
+                self.lastObservation = observation
+        })
+        faceTracking.trackingLevel = .accurate
         
+        do {
+            try faceTrackingRequest.perform([faceTracking], on: image)
+        } catch {
+            self.faceDetectionFail(with: .faceTrackingError(error.localizedDescription))
+            return
+        }
+        
+        if Double(lastObservation.confidence) < LocalDetector.kTrackingConfidenceThreshold {
+            tracking = false
+            detectFace(inImage: image)
+        } else {
+            detectLandmarks(inImage: image, bound: lastObservation.boundingBox)
+        }
     }
     
     private func detectLandmarks(inImage image: CIImage,
-                                 bound boundingBox: CGRect,
-                                 resultHandler: @escaping ([CGPoint]?, Error?) -> Swift.Void) {
-        do {
-            landmarksDetection.inputFaceObservations = [VNFaceObservation.init(boundingBox: boundingBox)]
-            try landmarksDetectionRequest.perform([landmarksDetection], on: image)
-        } catch {
-            resultHandler(nil, EMAError.faceLandmarksDetectionError("Error in face landmarks detection: " + error.localizedDescription))
+                                 bound boundingBox: CGRect) {
+        guard let landmarksHandler = self.landmarksHandler else {
+            landmarksDetectionFail(with: .faceLandmarksDetectionError("No handler"))
             return
         }
-        let faceObservation = landmarksDetection.results![0] as! VNFaceObservation
-        let landmarks = faceObservation.landmarks!
         
-        var landmarksPoints: [CGPoint] = []
+        do {
+            landmarksDetection.inputFaceObservations = [VNFaceObservation(boundingBox: boundingBox)]
+            try landmarksDetectionRequest.perform([landmarksDetection], on: image)
+        } catch {
+            landmarksDetectionFail(with: .faceLandmarksDetectionError(error.localizedDescription))
+            return
+        }
+        
+        guard let results = landmarksDetection.results, results.count > 0 else {
+            landmarksDetectionFail(with: .faceLandmarksDetectionError("No face"))
+            return
+        }
+        guard let faceObservation = results[0] as? VNFaceObservation else {
+            landmarksDetectionFail(with: .faceLandmarksDetectionError("Wrong type"))
+            return
+        }
+        guard let landmarks = faceObservation.landmarks else {
+            landmarksDetectionFail(with: .faceLandmarksDetectionError("No landmarks"))
+            return
+        }
+        
+        var landmarksPoints = [CGPoint]()
         let _ = [
             landmarks.leftEyebrow,
             landmarks.rightEyebrow,
@@ -71,16 +151,17 @@ class LocalDetector: NSObject {
             landmarks.rightEye,
             landmarks.outerLips,
             landmarks.innerLips
-            ].map { landmarksPoints.append(contentsOf: scale($0?.normalizedPoints, 
-                                                             toRect: boundingBox)) }
-        resultHandler(landmarksPoints, nil)
+            ].map { landmarksPoints.append(contentsOf: scale($0?.normalizedPoints, toRect: boundingBox)) }
+        
+        landmarksHandler(landmarksPoints, nil)
+        self.landmarksHandler = nil
     }
     
     private func scale(_ points: [CGPoint]?, toRect rect: CGRect) -> [CGPoint] {
         if let _ = points {
             return points!.map {
-                CGPoint.init(x: $0.x * rect.size.width  + rect.origin.x,
-                             y: $0.y * rect.size.height + rect.origin.y)
+                CGPoint(x: $0.x * rect.size.width  + rect.origin.x,
+                        y: $0.y * rect.size.height + rect.origin.y)
             };
         } else {
             return []
