@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
 from PIL import Image
 from io import BytesIO
-from detector import create_rect, detect_face_landmark
+from detector import create_rect, detect_landmarks
 import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
@@ -88,10 +88,10 @@ class MyServer(BaseHTTPRequestHandler):
             content_length = int(self.headers["Content-Length"])
             face_image = Image.open(BytesIO(self.rfile.read(content_length)))
 
-            landmarks = detect_face_landmark(np.array(face_image),
-                                             create_rect(0, 0, face_image.size[0], face_image.size[1]))
+            landmarks = detect_landmarks(np.array(face_image),
+                                         create_rect(0, 0, face_image.size[0], face_image.size[1]))
             image_info, image_bytes = [], BytesIO()
-            for pid, bbox in retrieve_painting(landmarks, face_image):
+            for pid, bbox in retrieve_painting(landmarks):
                 prev_len = len(image_bytes.getvalue())
                 original = Image.open(get_painting_filename(pid))
                 original.save(image_bytes, format="jpeg")

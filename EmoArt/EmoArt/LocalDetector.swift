@@ -38,12 +38,44 @@ class LocalDetector: NSObject {
                            landmarksDetectionResultHandler: @escaping ([CGPoint]?, EMAError?) -> Swift.Void) {
         faceHandler = faceDetectionResultHandler
         landmarksHandler = landmarksDetectionResultHandler
+        let currentTime = Date().timeIntervalSince1970
+        let doTracking = tracking && (currentTime - timestamp < LocalDetector.kDetectionTimeIntervalThreshold)
+        timestamp = currentTime
+        if doTracking {
+            trackFace(inImage: image)
+        } else {
+            detectFace(inImage: image)
+        }
+    }
+    
+    private func log(_ message: String) {
+        print("[LocalDetector] " + message)
+    }
+    
+    private func faceDetectionSuccess(_ result: DetectionResult) {
+        if let handler = faceHandler {
+            handler(result, nil)
+            faceHandler = nil
+        } else {
+            log("No handler when face detection did success")
+        }
     }
     
     private func faceDetectionFail(with error: EMAError) {
         if let handler = faceHandler {
             handler(nil, error)
             faceHandler = nil
+        } else {
+            log("No handler when face detection did fail")
+        }
+    }
+    
+    private func landmarksDetectionSuccess(_ result: [CGPoint]) {
+        if let handler = landmarksHandler {
+            handler(result, nil)
+            landmarksHandler = nil
+        } else {
+            log("No handler when landmarks detection did success")
         }
     }
     
@@ -51,11 +83,32 @@ class LocalDetector: NSObject {
         if let handler = landmarksHandler {
             handler(nil, error)
             landmarksHandler = nil
+        } else {
+            log("No handler when landmarks detection did fail")
         }
     }
     
     private func detectFace(inImage image: CIImage) {
+        do {
+            try faceDetectionRequest.perform([faceDetection], on: image)
+        } catch {
+            faceDetectionFail(with: .faceDetectionError(error.localizedDescription))
+        }
         
+        guard let results = faceDetection.results as? [VNFaceObservation] else {
+            faceDetectionFail(with: .faceDetectionError("Wrong type"))
+            return
+        }
+        guard results.count > 0 else {
+            faceDetectionSuccess(.notFound)
+            return
+        }
+        
+        lastObservation = results.max {
+            $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
+        }
+        trackFace(inImage: image)
+        tracking = true
     }
     
     private func trackFace(inImage image: CIImage) {
@@ -115,29 +168,24 @@ class LocalDetector: NSObject {
     
     private func detectLandmarks(inImage image: CIImage,
                                  bound boundingBox: CGRect) {
-        guard let landmarksHandler = self.landmarksHandler else {
-            landmarksDetectionFail(with: .faceLandmarksDetectionError("No handler"))
-            return
-        }
-        
         do {
             landmarksDetection.inputFaceObservations = [VNFaceObservation(boundingBox: boundingBox)]
             try landmarksDetectionRequest.perform([landmarksDetection], on: image)
         } catch {
-            landmarksDetectionFail(with: .faceLandmarksDetectionError(error.localizedDescription))
+            landmarksDetectionFail(with: .landmarksDetectionError(error.localizedDescription))
             return
         }
         
         guard let results = landmarksDetection.results, results.count > 0 else {
-            landmarksDetectionFail(with: .faceLandmarksDetectionError("No face"))
+            landmarksDetectionFail(with: .landmarksDetectionError("No face"))
             return
         }
         guard let faceObservation = results[0] as? VNFaceObservation else {
-            landmarksDetectionFail(with: .faceLandmarksDetectionError("Wrong type"))
+            landmarksDetectionFail(with: .landmarksDetectionError("Wrong type"))
             return
         }
         guard let landmarks = faceObservation.landmarks else {
-            landmarksDetectionFail(with: .faceLandmarksDetectionError("No landmarks"))
+            landmarksDetectionFail(with: .landmarksDetectionError("No landmarks"))
             return
         }
         
@@ -153,8 +201,12 @@ class LocalDetector: NSObject {
             landmarks.innerLips
             ].map { landmarksPoints.append(contentsOf: scale($0?.normalizedPoints, toRect: boundingBox)) }
         
-        landmarksHandler(landmarksPoints, nil)
-        self.landmarksHandler = nil
+        if tracking {
+            faceDetectionSuccess(.foundByTracking(boundingBox))
+        } else {
+            faceDetectionSuccess(.foundByDetection(boundingBox))
+        }
+        landmarksDetectionSuccess(landmarksPoints)
     }
     
     private func scale(_ points: [CGPoint]?, toRect rect: CGRect) -> [CGPoint] {

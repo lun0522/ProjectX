@@ -33,7 +33,7 @@ def fetch_image(params):
         return None, None
 
 
-def crawl(directory=dbHandler.downloads_dir, max_storage=4500, do_detection=True):
+def crawl(max_storage, directory=dbHandler.downloads_dir, do_detection=True):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -87,4 +87,4 @@ def crawl(directory=dbHandler.downloads_dir, max_storage=4500, do_detection=True
 
 
 if __name__ == "__main__":
-    crawl()
+    crawl(4000)
