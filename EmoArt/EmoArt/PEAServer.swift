@@ -28,9 +28,9 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     static let kLeanCloudObjectId = "5a40a4eee37d040044aa4733"
     static let kClientAuthentication = "PortableEmotionAnalysis"
     
-    private var serviceBrowser = NetServiceBrowser()
-    private var resolverList = [NetService]()
-    private var serverAddress = ""
+    var serviceBrowser = NetServiceBrowser()
+    var resolverList = [NetService]()
+    var serverAddress = ""
     
     override init() {
         super.init()
@@ -38,34 +38,34 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         queryServerAddress()
     }
     
-    private func log(_ message: String) {
+    func log(_ message: String) {
         print("[PEAServer] " + message)
     }
     
     // MARK: - NSNetServiceBrowser
     
-    private func searchForServerInLAN() {
+    func searchForServerInLAN() {
         serviceBrowser.delegate = self
         serviceBrowser.searchForServices(ofType: PEAServer.kServerType,
                                          inDomain: PEAServer.kServerDomain)
         log("Start browsing for services")
     }
     
-    internal func netServiceBrowser(_ browser: NetServiceBrowser,
-                                   didFind service: NetService,
-                                   moreComing: Bool) {
+    func netServiceBrowser(_ browser: NetServiceBrowser,
+                           didFind service: NetService,
+                           moreComing: Bool) {
         service.delegate = self
         service.resolve(withTimeout: 10.0)
         resolverList.append(service)
     }
     
-    internal func netServiceBrowser(_ browser: NetServiceBrowser,
-                                    didNotSearch errorDict: [String : NSNumber]) {
+    func netServiceBrowser(_ browser: NetServiceBrowser,
+                           didNotSearch errorDict: [String : NSNumber]) {
         stopBrowsing()
         log("Error in browsing for services: \(errorDict)")
     }
     
-    private func stopBrowsing() {
+    func stopBrowsing() {
         serviceBrowser.stop()
         serviceBrowser.delegate = nil
         let _ = resolverList.map { removeResolver($0, atEvent: "stop browsing") }
@@ -75,7 +75,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     
     // MARK: - NSNetServiceResolver
     
-    internal func netServiceDidResolveAddress(_ sender: NetService) {
+    func netServiceDidResolveAddress(_ sender: NetService) {
         removeResolver(sender, atEvent: "did resolve")
         
         // check TXT record
@@ -109,12 +109,12 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         log("Found server in LAN: " + serverAddress)
     }
     
-    internal func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {
+    func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {
         removeResolver(sender, atEvent: "did not resolve")
         log("Error in resolving service \(sender): \(errorDict)")
     }
     
-    private func removeResolver(_ resolver: NetService, atEvent event: String) {
+    func removeResolver(_ resolver: NetService, atEvent event: String) {
         resolver.stop()
         resolver.delegate = nil
         if let index = resolverList.index(of: resolver) {
@@ -124,7 +124,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     
     // MARK: - HTTP requests
     
-    private func queryServerAddress() {
+    func queryServerAddress() {
         // setup request
         var request = URLRequest(url: URL(string: PEAServer.kLeanCloudUrl)!,
                                  cachePolicy: .reloadIgnoringCacheData,

@@ -8,6 +8,8 @@
 
 enum EMAError: Error {
     
+    case videoLayerSetupError(String)
+    case videoLayerOperationError(String)
     case sendDataError(String)
     case faceDetectionError(String)
     case faceTrackingError(String)
@@ -15,6 +17,10 @@ enum EMAError: Error {
     
     var errorDescription: String {
         switch self {
+        case let .videoLayerSetupError(description):
+            return "Error in video layer setup: " + description
+        case let .videoLayerOperationError(description):
+            return "Error in operating video layer: " + description
         case let .sendDataError(description):
             return "Error in sending data: " + description
         case let .faceDetectionError(description):

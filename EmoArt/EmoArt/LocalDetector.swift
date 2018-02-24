@@ -22,16 +22,16 @@ class LocalDetector: NSObject {
         case foundByTracking(CGRect)
     }
     
-    private let faceDetection = VNDetectFaceRectanglesRequest()
-    private let landmarksDetection = VNDetectFaceLandmarksRequest()
-    private var lastObservation: VNFaceObservation?
-    private let faceDetectionRequest = VNSequenceRequestHandler()
-    private let landmarksDetectionRequest = VNSequenceRequestHandler()
-    private var faceTrackingRequest = VNSequenceRequestHandler()
-    private var faceHandler: ((DetectionResult?, EMAError?) -> Swift.Void)?
-    private var landmarksHandler: (([CGPoint]?, EMAError?) -> Swift.Void)?
-    private var timestamp: TimeInterval = Date().timeIntervalSince1970
-    private var tracking = false
+    let faceDetection = VNDetectFaceRectanglesRequest()
+    let landmarksDetection = VNDetectFaceLandmarksRequest()
+    var lastObservation: VNFaceObservation?
+    let faceDetectionRequest = VNSequenceRequestHandler()
+    let landmarksDetectionRequest = VNSequenceRequestHandler()
+    var faceTrackingRequest = VNSequenceRequestHandler()
+    var faceHandler: ((DetectionResult?, EMAError?) -> Swift.Void)?
+    var landmarksHandler: (([CGPoint]?, EMAError?) -> Swift.Void)?
+    var timestamp = Date().timeIntervalSince1970
+    var tracking = false
     
     public func detectFace(inImage image: CIImage,
                            faceDetectionResultHandler: @escaping (DetectionResult?, EMAError?) -> Swift.Void,
@@ -48,11 +48,11 @@ class LocalDetector: NSObject {
         }
     }
     
-    private func log(_ message: String) {
+    func log(_ message: String) {
         print("[LocalDetector] " + message)
     }
     
-    private func faceDetectionSuccess(_ result: DetectionResult) {
+    func faceDetectionSuccess(_ result: DetectionResult) {
         if let handler = faceHandler {
             handler(result, nil)
             faceHandler = nil
@@ -61,7 +61,7 @@ class LocalDetector: NSObject {
         }
     }
     
-    private func faceDetectionFail(with error: EMAError) {
+    func faceDetectionFail(with error: EMAError) {
         if let handler = faceHandler {
             handler(nil, error)
             faceHandler = nil
@@ -70,7 +70,7 @@ class LocalDetector: NSObject {
         }
     }
     
-    private func landmarksDetectionSuccess(_ result: [CGPoint]) {
+    func landmarksDetectionSuccess(_ result: [CGPoint]) {
         if let handler = landmarksHandler {
             handler(result, nil)
             landmarksHandler = nil
@@ -79,7 +79,7 @@ class LocalDetector: NSObject {
         }
     }
     
-    private func landmarksDetectionFail(with error: EMAError) {
+    func landmarksDetectionFail(with error: EMAError) {
         if let handler = landmarksHandler {
             handler(nil, error)
             landmarksHandler = nil
@@ -88,7 +88,7 @@ class LocalDetector: NSObject {
         }
     }
     
-    private func detectFace(inImage image: CIImage) {
+    func detectFace(inImage image: CIImage) {
         do {
             try faceDetectionRequest.perform([faceDetection], on: image)
         } catch {
@@ -111,7 +111,7 @@ class LocalDetector: NSObject {
         tracking = true
     }
     
-    private func trackFace(inImage image: CIImage) {
+    func trackFace(inImage image: CIImage) {
         guard let lastObservation = self.lastObservation else {
             faceDetectionFail(with: .faceTrackingError("No face observation"))
             return
@@ -166,8 +166,7 @@ class LocalDetector: NSObject {
         }
     }
     
-    private func detectLandmarks(inImage image: CIImage,
-                                 bound boundingBox: CGRect) {
+    func detectLandmarks(inImage image: CIImage, bound boundingBox: CGRect) {
         do {
             landmarksDetection.inputFaceObservations = [VNFaceObservation(boundingBox: boundingBox)]
             try landmarksDetectionRequest.perform([landmarksDetection], on: image)
@@ -209,7 +208,7 @@ class LocalDetector: NSObject {
         landmarksDetectionSuccess(landmarksPoints)
     }
     
-    private func scale(_ points: [CGPoint]?, toRect rect: CGRect) -> [CGPoint] {
+    func scale(_ points: [CGPoint]?, toRect rect: CGRect) -> [CGPoint] {
         if let _ = points {
             return points!.map {
                 CGPoint(x: $0.x * rect.size.width  + rect.origin.x,
