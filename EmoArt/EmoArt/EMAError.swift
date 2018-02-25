@@ -6,30 +6,29 @@
 //  Copyright © 2018 Pujun Lun. All rights reserved.
 //
 
-enum EMAError: Error {
+import Foundation
+
+class EMAError: NSObject, Error {
     
-    case videoLayerSetupError(String)
-    case videoLayerOperationError(String)
-    case sendDataError(String)
-    case faceDetectionError(String)
-    case faceTrackingError(String)
-    case landmarksDetectionError(String)
+    var domain: Domain!
+    var reason: String!
+    
+    enum Domain: String {
+        case videoLayerSetup = "Error in video layer setup: "
+        case videoLayerOperation = "Error in operating video layer: "
+        case sendingData = "Error in sending data: "
+        case faceDetection = "Error in face detection: "
+        case faceTracking = "Error in face tracking: "
+        case landmarksDetection = "Error in landmarks detection: "
+    }
+    
+    init(in domain: Domain, reason: String) {
+        self.domain = domain
+        self.reason = reason
+    }
     
     var errorDescription: String {
-        switch self {
-        case let .videoLayerSetupError(description):
-            return "Error in video layer setup: " + description
-        case let .videoLayerOperationError(description):
-            return "Error in operating video layer: " + description
-        case let .sendDataError(description):
-            return "Error in sending data: " + description
-        case let .faceDetectionError(description):
-            return "Error in face detection: " + description
-        case let .faceTrackingError(description):
-            return "Error in face tracking: " + description
-        case let .landmarksDetectionError(description):
-            return "Error in landmarks detection: " + description
-        }
+        return domain.rawValue + reason
     }
     
 }

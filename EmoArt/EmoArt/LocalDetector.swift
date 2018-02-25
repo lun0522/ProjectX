@@ -61,15 +61,6 @@ class LocalDetector: NSObject {
         }
     }
     
-    func faceDetectionFail(with error: EMAError) {
-        if let handler = faceHandler {
-            handler(nil, error)
-            faceHandler = nil
-        } else {
-            log("No handler when face detection did fail")
-        }
-    }
-    
     func landmarksDetectionSuccess(_ result: [CGPoint]) {
         if let handler = landmarksHandler {
             handler(result, nil)
@@ -79,12 +70,24 @@ class LocalDetector: NSObject {
         }
     }
     
-    func landmarksDetectionFail(with error: EMAError) {
-        if let handler = landmarksHandler {
-            handler(nil, error)
-            landmarksHandler = nil
-        } else {
-            log("No handler when landmarks detection did fail")
+    func detectionFail(in domain: EMAError.Domain, reason: String) {
+        switch domain {
+        case .faceDetection, .faceTracking:
+            if let handler = faceHandler {
+                handler(nil, EMAError(in: domain, reason: reason))
+                faceHandler = nil
+            } else {
+                log("No handler when face detection did fail")
+            }
+        case .landmarksDetection:
+            if let handler = landmarksHandler {
+                handler(nil, EMAError(in: domain, reason: reason))
+                landmarksHandler = nil
+            } else {
+                log("No handler when landmarks detection did fail")
+            }
+        default:
+            log("Detection failed with unknown error type")
         }
     }
     
@@ -92,11 +95,12 @@ class LocalDetector: NSObject {
         do {
             try faceDetectionRequest.perform([faceDetection], on: image)
         } catch {
-            faceDetectionFail(with: .faceDetectionError(error.localizedDescription))
+            detectionFail(in: .faceDetection, reason: error.localizedDescription)
+            return
         }
         
         guard let results = faceDetection.results as? [VNFaceObservation] else {
-            faceDetectionFail(with: .faceDetectionError("Wrong type"))
+            detectionFail(in: .faceDetection, reason: "Wrong type")
             return
         }
         guard results.count > 0 else {
@@ -113,7 +117,7 @@ class LocalDetector: NSObject {
     
     func trackFace(inImage image: CIImage) {
         guard let lastObservation = self.lastObservation else {
-            faceDetectionFail(with: .faceTrackingError("No face observation"))
+            detectionFail(in: .faceTracking, reason: "No face observation")
             return
         }
         
@@ -135,15 +139,15 @@ class LocalDetector: NSObject {
                 }
                 
                 guard error == nil else {
-                    self.faceDetectionFail(with: .faceTrackingError(error!.localizedDescription))
+                    self.detectionFail(in: .faceTracking, reason: error!.localizedDescription)
                     return
                 }
                 guard let results = request.results, results.count > 0 else {
-                    self.faceDetectionFail(with: .faceTrackingError("No face"))
+                    self.detectionFail(in: .faceTracking, reason: "No face")
                     return
                 }
                 guard let observation = results[0] as? VNFaceObservation else {
-                    self.faceDetectionFail(with: .faceTrackingError("Wrong type"))
+                    self.detectionFail(in: .faceTracking, reason: "Wrong type")
                     return
                 }
                 didFindFace = true
@@ -154,7 +158,7 @@ class LocalDetector: NSObject {
         do {
             try faceTrackingRequest.perform([faceTracking], on: image)
         } catch {
-            self.faceDetectionFail(with: .faceTrackingError(error.localizedDescription))
+            self.detectionFail(in: .faceTracking, reason: error.localizedDescription)
             return
         }
         
@@ -171,20 +175,20 @@ class LocalDetector: NSObject {
             landmarksDetection.inputFaceObservations = [VNFaceObservation(boundingBox: boundingBox)]
             try landmarksDetectionRequest.perform([landmarksDetection], on: image)
         } catch {
-            landmarksDetectionFail(with: .landmarksDetectionError(error.localizedDescription))
+            detectionFail(in: .landmarksDetection, reason: error.localizedDescription)
             return
         }
         
         guard let results = landmarksDetection.results, results.count > 0 else {
-            landmarksDetectionFail(with: .landmarksDetectionError("No face"))
+            detectionFail(in: .landmarksDetection, reason: "No face")
             return
         }
         guard let faceObservation = results[0] as? VNFaceObservation else {
-            landmarksDetectionFail(with: .landmarksDetectionError("Wrong type"))
+            detectionFail(in: .landmarksDetection, reason: "Wrong type")
             return
         }
         guard let landmarks = faceObservation.landmarks else {
-            landmarksDetectionFail(with: .landmarksDetectionError("No landmarks"))
+            detectionFail(in: .landmarksDetection, reason: "No landmarks")
             return
         }
         

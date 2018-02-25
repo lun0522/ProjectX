@@ -184,8 +184,12 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                          operation: Operation,
                          timeout: TimeInterval,
                          responseHandler: @escaping ([String : Any]?, EMAError?) -> Swift.Void) {
+        func didFail(reason: String) {
+            responseHandler(nil, EMAError(in: .sendingData, reason: reason))
+        }
+        
         guard serverAddress.count != 0 else {
-            responseHandler(nil, .sendDataError("No server address found"))
+            didFail(reason: "No server address found")
             return
         }
         
@@ -209,12 +213,12 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         let task = URLSession(configuration: .default).uploadTask(with: request, from: data) {
                 (returnedData, response, error) in
                 guard error == nil else {
-                    responseHandler(nil, .sendDataError(error!.localizedDescription))
+                    didFail(reason: error!.localizedDescription)
                     return
                 }
                 let httpResponse = response as! HTTPURLResponse
                 guard httpResponse.statusCode != 200 else {
-                    responseHandler(nil, .sendDataError("Code \(httpResponse.statusCode)"))
+                    didFail(reason: "Code \(httpResponse.statusCode)")
                     return
                 }
                 
@@ -233,18 +237,18 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                     responseHandler(info, nil)
                 case .retrieve:
                     guard let data = returnedData else {
-                        responseHandler(nil, .sendDataError("No data returned after retrieving"))
+                        didFail(reason: "No data returned after retrieving")
                         return
                     }
                     guard let info = httpResponse.allHeaderFields["Image-Info"] else {
-                        responseHandler(nil, .sendDataError("No image info returned after retrieving"))
+                        didFail(reason: "No image info returned after retrieving")
                         return
                     }
                     responseHandler(["info" : info,
                                      "data" : data], nil)
                 case .transfer:
                     guard let data = returnedData else {
-                        responseHandler(nil, .sendDataError("No image data returned after transfer"))
+                        didFail(reason: "No image data returned after transfer")
                         return
                     }
                     responseHandler(["data" : data], nil)
