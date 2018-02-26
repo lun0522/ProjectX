@@ -11,13 +11,13 @@
 		BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */; };
 		BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4C66B4203B42110097BC0F /* EMAError.swift */; };
 		BD94E12E203950420058C11D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E12D203950420058C11D /* AppDelegate.swift */; };
-		BD94E130203950420058C11D /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E12F203950420058C11D /* ViewController.swift */; };
 		BD94E133203950420058C11D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BD94E131203950420058C11D /* Main.storyboard */; };
 		BD94E135203950420058C11D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BD94E134203950420058C11D /* Assets.xcassets */; };
 		BD94E138203950420058C11D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BD94E136203950420058C11D /* LaunchScreen.storyboard */; };
 		BD94E143203950420058C11D /* EmoArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E142203950420058C11D /* EmoArtTests.swift */; };
 		BD94E14E203950420058C11D /* EmoArtUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E14D203950420058C11D /* EmoArtUITests.swift */; };
 		BD94E15C203950710058C11D /* PEAServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E15B203950710058C11D /* PEAServer.swift */; };
+		BDF8502C204477270087FD35 /* StylizedViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF8502B204477270087FD35 /* StylizedViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,7 +43,6 @@
 		BD4C66B4203B42110097BC0F /* EMAError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMAError.swift; sourceTree = "<group>"; };
 		BD94E12A203950420058C11D /* EmoArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EmoArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD94E12D203950420058C11D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		BD94E12F203950420058C11D /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		BD94E132203950420058C11D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		BD94E134203950420058C11D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BD94E137203950420058C11D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -55,6 +54,7 @@
 		BD94E14D203950420058C11D /* EmoArtUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmoArtUITests.swift; sourceTree = "<group>"; };
 		BD94E14F203950420058C11D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BD94E15B203950710058C11D /* PEAServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PEAServer.swift; sourceTree = "<group>"; };
+		BDF8502B204477270087FD35 /* StylizedViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylizedViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,7 +106,7 @@
 			isa = PBXGroup;
 			children = (
 				BD94E12D203950420058C11D /* AppDelegate.swift */,
-				BD94E12F203950420058C11D /* ViewController.swift */,
+				BDF8502B204477270087FD35 /* StylizedViewController.swift */,
 				BD1B01E62041CEB300F472F6 /* VideoLayer.swift */,
 				BD94E15B203950710058C11D /* PEAServer.swift */,
 				BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */,
@@ -271,11 +271,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BD94E130203950420058C11D /* ViewController.swift in Sources */,
 				BD1B01E72041CEB300F472F6 /* VideoLayer.swift in Sources */,
 				BD94E12E203950420058C11D /* AppDelegate.swift in Sources */,
 				BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */,
 				BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */,
+				BDF8502C204477270087FD35 /* StylizedViewController.swift in Sources */,
 				BD94E15C203950710058C11D /* PEAServer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

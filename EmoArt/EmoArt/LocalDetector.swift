@@ -70,18 +70,18 @@ class LocalDetector: NSObject {
         }
     }
     
-    func detectionFail(in domain: EMAError.Domain, reason: String) {
+    func detectionFail(in domain: EMAErrorDomain, reason: String) {
         switch domain {
         case .faceDetection, .faceTracking:
             if let handler = faceHandler {
-                handler(nil, EMAError(in: domain, reason: reason))
+                handler(nil, EMAError(domain: domain, reason: reason))
                 faceHandler = nil
             } else {
                 log("No handler when face detection did fail")
             }
         case .landmarksDetection:
             if let handler = landmarksHandler {
-                handler(nil, EMAError(in: domain, reason: reason))
+                handler(nil, EMAError(domain: domain, reason: reason))
                 landmarksHandler = nil
             } else {
                 log("No handler when landmarks detection did fail")

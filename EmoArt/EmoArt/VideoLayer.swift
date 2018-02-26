@@ -33,7 +33,7 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
         session.beginConfiguration()
         
         if let errorReason = layer.addCamera(oriented: position) {
-            throw EMAError(in: .videoLayerSetup, reason: errorReason)
+            throw EMAError(domain: .videoLayerSetup, reason: errorReason)
         }
         
         let videoOutput = AVCaptureVideoDataOutput()
@@ -41,7 +41,7 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.setSampleBufferDelegate(layer, queue: DispatchQueue(label: "com.lun.emoart.videooutput.queue"))
         guard session.canAddOutput(videoOutput) else {
-            throw EMAError(in: .videoLayerSetup, reason: "Cannot add output")
+            throw EMAError(domain: .videoLayerSetup, reason: "Cannot add output")
         }
         session.addOutput(videoOutput)
         
@@ -75,7 +75,7 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
         
         capturerSession.removeInput(capturerSession.inputs[0])
         if let errorReason = addCamera(oriented: newOrientation) {
-            throw EMAError(in: .videoLayerOperation, reason: errorReason)
+            throw EMAError(domain: .videoLayerOperation, reason: errorReason)
         }
         
         capturerSession.commitConfiguration()

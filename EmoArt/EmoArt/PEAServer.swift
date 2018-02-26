@@ -185,7 +185,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                          timeout: TimeInterval,
                          responseHandler: @escaping ([String : Any]?, EMAError?) -> Swift.Void) {
         func didFail(reason: String) {
-            responseHandler(nil, EMAError(in: .sendingData, reason: reason))
+            responseHandler(nil, EMAError(domain: .sendingData, reason: reason))
         }
         
         guard serverAddress.count != 0 else {
