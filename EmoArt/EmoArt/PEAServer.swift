@@ -108,7 +108,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
             return
         }
         // use address and stop browsing
-        guard self.isAddressFound == false else {
+        guard !self.isAddressFound else {
             self.log("Server address already exists, discard address found in LAN")
             return
         }
@@ -179,7 +179,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                 return
             }
             // use address and stop browsing
-            guard self.isAddressFound == false else {
+            guard !self.isAddressFound else {
                 self.log("Server address already exists, discard address retrieved through internet")
                 return
             }
@@ -199,7 +199,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
             responseHandler(nil, EMAError(domain: .sendingData, reason: reason))
         }
         
-        guard isAddressFound == true else {
+        guard isAddressFound else {
             didFail(reason: "No server address found")
             return
         }

@@ -133,7 +133,7 @@ class LocalDetector {
                 defer {
                     // https://stackoverflow.com/a/46355234/7873124
                     // Re-instantiate the request handler if the face is lost
-                    if didFindFace == false {
+                    if !didFindFace {
                         self.faceTrackingRequest = VNSequenceRequestHandler()
                     }
                 }

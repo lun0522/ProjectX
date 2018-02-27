@@ -42,9 +42,41 @@ class SelectViewController: UIViewController {
         }
     }
     
+    func sendDataWithAnimation(_ data: Data,
+                               headerFields: [String : String]?,
+                               operation: PEAServer.Operation,
+                               timeout: TimeInterval,
+                               responseHandler: @escaping ([String : Any]?, EMAError?) -> Swift.Void) {
+        DispatchQueue.main.async {
+            self.view.addSubview(self.blurEffectView)
+        }
+        
+        PEAServer.sharedInstance.sendData(data, headerFields: headerFields, operation: operation, timeout: timeout, responseHandler: {
+            (response, error) in
+            responseHandler(response, error)
+            DispatchQueue.main.async {
+                self.transferIndicator.stopAnimating()
+                self.transferIndicator.removeFromSuperview()
+                UIView.animate(withDuration: 0.3, animations: {
+                    self.blurEffectView.effect = nil
+                }, completion: { finished in
+                    self.blurEffectView.removeFromSuperview()
+                })
+            }
+        })
+        
+        DispatchQueue.main.async {
+            UIView.animate(withDuration: 0.3, animations: {
+                self.blurEffectView.effect = UIBlurEffect(style: .dark)
+            }) { finished in
+                self.transferIndicator.startAnimating()
+                self.view.addSubview(self.transferIndicator)
+            }
+        }
+    }
+    
     func retrievePaintings() {
-        onProcessingAnimation()
-        PEAServer.sharedInstance.sendData(
+        sendDataWithAnimation(
             selfieData,
             headerFields: nil,
             operation: .retrieve,
@@ -56,12 +88,13 @@ class SelectViewController: UIViewController {
                 }
                 
                 // extract info and data
-                // response -> info: [[String : Any]], data: NSData
+                // response -> info: [[String : Any]]
+                //             data: Data (painting0, portrait0, painting1, portrait1, ...)
                 guard let _ = response,
                     let infoData = response!["info"] as? Data,
-                    let imageData = response!["data"] as? NSData else {
-                    self.showError("No data returned")
-                    return
+                    let imageData = response!["data"] as? Data else {
+                        self.showError("No data returned")
+                        return
                 }
                 var infoArray: [[String : Any]]?
                 do {
@@ -75,8 +108,19 @@ class SelectViewController: UIViewController {
                     return
                 }
                 
-                // extract data of each image
+                // extract data for each image
                 var offset: Int = 0
+                func image(dataLength: Int, appendTo array: inout [UIImage]) -> Bool {
+                    guard let image = UIImage(data: imageData.subdata(in:
+                        imageData.startIndex.advanced(by: offset) ..<
+                            imageData.startIndex.advanced(by: offset + dataLength))) else {
+                                return false
+                    }
+                    array.append(image)
+                    offset += dataLength
+                    return true
+                }
+                
                 let _ = infoArray!.map {
                     guard let paintingId = $0["Painting-Id"] as? String,
                         let paintingDataLength = $0["Painting-Length"] as? Int,
@@ -87,53 +131,22 @@ class SelectViewController: UIViewController {
                     
                     // extract painting
                     self.paintingsId.append(paintingId)
-                    guard let painting = UIImage(data: Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: imageData.bytes.advanced(by: offset)), count: paintingDataLength, deallocator: .none)) else {
+                    guard image(dataLength: paintingDataLength, appendTo: &self.paintings) else {
                         self.showError("Cannot initialize painting")
                         return
                     }
-                    self.paintings.append(painting)
-                    offset += paintingDataLength
                     
                     // extract portrait
-                    guard let portrait = UIImage(data: Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: imageData.bytes.advanced(by: offset)), count: portraitDataLength, deallocator: .none)) else {
+                    guard image(dataLength: portraitDataLength, appendTo: &self.portraits) else {
                         self.showError("Cannot initialize portrait")
                         return
                     }
-                    self.portraits.append(portrait)
-                    offset += portraitDataLength
                 }
                 
                 self.paintingView.image = self.paintings[0]
                 self.firstPortraitView.image = self.portraits[0]
                 self.secondPortraitView.image = self.portraits[1]
                 self.thirdPortraitView.image = self.portraits[2]
-        }
-    }
-    
-    func onProcessingAnimation() {
-        DispatchQueue.main.async {
-            self.transferIndicator.startAnimating()
-            self.view.addSubview(self.blurEffectView)
-            UIView.animate(withDuration: 0.3,
-                           animations: {
-                self.blurEffectView.effect = UIBlurEffect(style: .dark)
-            }, completion: { finished in
-                self.view.addSubview(self.transferIndicator)
-            })
-        }
-    }
-    
-    func endProcessingAnimation(block: @escaping () -> Swift.Void) {
-        DispatchQueue.main.async {
-            self.transferIndicator.stopAnimating()
-            self.transferIndicator.removeFromSuperview()
-            block()
-            UIView.animate(withDuration: 0.3,
-                           animations: {
-                self.blurEffectView.effect = nil
-            }, completion: { finished in
-                self.blurEffectView.removeFromSuperview()
-            })
         }
     }
     
@@ -159,11 +172,10 @@ class SelectViewController: UIViewController {
     @IBAction func pushStylized(_ sender: UIButton) {
         var willPush = true
         // do transfer only if stylized image not found in cache
-        if stylizedImages.keys.contains(selectedPainting) == false {
+        if !stylizedImages.keys.contains(selectedPainting) {
             willPush = false
             let semaphore = DispatchSemaphore(value: 0)
-            onProcessingAnimation()
-            PEAServer.sharedInstance.sendData(
+            sendDataWithAnimation(
                 Data(),
                 headerFields: ["Photo-Timestamp": photoTimestamp,
                                "Style-Id": paintingsId[selectedPainting]],
@@ -171,20 +183,18 @@ class SelectViewController: UIViewController {
                 timeout: 300,
                 responseHandler: {
                     (response, error) in
-                    self.endProcessingAnimation {
-                        guard error == nil else {
-                            self.showError("Error in transfer: " + error!.localizedDescription)
-                            return
-                        }
-                        guard let _ = response, let imageData = response!["data"] as? Data else {
-                            self.showError("No data returned")
-                            return
-                        }
-                        self.stylizedImages[self.selectedPainting] = UIImage(data: imageData)
-                        self.performSegue(withIdentifier: "showStylizedImage", sender: self)
-                        willPush = true
-                        semaphore.signal()
+                    guard error == nil else {
+                        self.showError("Error in transfer: " + error!.localizedDescription)
+                        return
                     }
+                    guard let _ = response, let imageData = response!["data"] as? Data else {
+                        self.showError("No data returned")
+                        return
+                    }
+                    self.stylizedImages[self.selectedPainting] = UIImage(data: imageData)
+                    self.performSegue(withIdentifier: "showStylizedImage", sender: self)
+                    willPush = true
+                    semaphore.signal()
             })
             semaphore.wait()
         }
