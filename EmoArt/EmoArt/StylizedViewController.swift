@@ -27,11 +27,9 @@ class StylizedViewController: UIViewController {
         imageView.image = sender.state == .began ? originalPhoto : stylizedImage
     }
     
-    @IBAction func tapShare(_ sender: Any) {
+    @IBAction func tapShare(_ sender: UIButton) {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Save to album",
-                                      style: .default,
-                                      handler: { action in
+        alert.addAction(UIAlertAction(title: "Save to album", style: .default, handler: { action in
             UIImageWriteToSavedPhotosAlbum(self.stylizedImage, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
         }))
         DispatchQueue.main.async {

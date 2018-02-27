@@ -99,17 +99,36 @@
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="18"/>
                                 <state key="normal" title="Use it!"/>
+                                <connections>
+                                    <action selector="pushStylized:" destination="Plb-Mm-YA1" eventType="touchUpInside" id="J5k-Kd-qEH"/>
+                                </connections>
                             </button>
                         </barButtonItem>
                     </navigationItem>
                     <connections>
+                        <outlet property="firstPortraitView" destination="hnK-j4-HDZ" id="djm-BL-8Ai"/>
+                        <outlet property="paintingView" destination="rMi-IO-n5z" id="3r0-dE-USe"/>
+                        <outlet property="secondPortraitView" destination="tba-pZ-tju" id="SSj-Hg-gv7"/>
+                        <outlet property="thirdPortraitView" destination="bOX-RP-XyU" id="1AO-NR-9qN"/>
                         <segue destination="Olm-UY-KbJ" kind="show" identifier="showStylizedImage" id="bXk-Rh-VBF"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="f6c-xI-rWw" userLabel="First Responder" sceneMemberID="firstResponder"/>
-                <tapGestureRecognizer id="9SI-Ba-AZW"/>
-                <tapGestureRecognizer id="dmr-If-ndk"/>
-                <tapGestureRecognizer id="U0F-Sx-AEc"/>
+                <tapGestureRecognizer id="9SI-Ba-AZW">
+                    <connections>
+                        <action selector="tapFirstPortrait:" destination="Plb-Mm-YA1" id="rGn-9N-etc"/>
+                    </connections>
+                </tapGestureRecognizer>
+                <tapGestureRecognizer id="dmr-If-ndk">
+                    <connections>
+                        <action selector="tapSecondPortrait:" destination="Plb-Mm-YA1" id="nfr-Hh-Zc0"/>
+                    </connections>
+                </tapGestureRecognizer>
+                <tapGestureRecognizer id="U0F-Sx-AEc">
+                    <connections>
+                        <action selector="tapThirdPortrait:" destination="Plb-Mm-YA1" id="RR0-TI-io9"/>
+                    </connections>
+                </tapGestureRecognizer>
             </objects>
             <point key="canvasLocation" x="2376.8000000000002" y="834.33283358320841"/>
         </scene>

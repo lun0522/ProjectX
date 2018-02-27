@@ -10,6 +10,7 @@
 		BD1B01E72041CEB300F472F6 /* VideoLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1B01E62041CEB300F472F6 /* VideoLayer.swift */; };
 		BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */; };
 		BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4C66B4203B42110097BC0F /* EMAError.swift */; };
+		BD4E2BDB20448698008E13F5 /* SelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4E2BDA20448698008E13F5 /* SelectViewController.swift */; };
 		BD94E12E203950420058C11D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E12D203950420058C11D /* AppDelegate.swift */; };
 		BD94E133203950420058C11D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BD94E131203950420058C11D /* Main.storyboard */; };
 		BD94E135203950420058C11D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BD94E134203950420058C11D /* Assets.xcassets */; };
@@ -41,6 +42,7 @@
 		BD1B01E62041CEB300F472F6 /* VideoLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoLayer.swift; sourceTree = "<group>"; };
 		BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDetector.swift; sourceTree = "<group>"; };
 		BD4C66B4203B42110097BC0F /* EMAError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMAError.swift; sourceTree = "<group>"; };
+		BD4E2BDA20448698008E13F5 /* SelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectViewController.swift; sourceTree = "<group>"; };
 		BD94E12A203950420058C11D /* EmoArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EmoArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD94E12D203950420058C11D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		BD94E132203950420058C11D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				BD94E12D203950420058C11D /* AppDelegate.swift */,
+				BD4E2BDA20448698008E13F5 /* SelectViewController.swift */,
 				BDF8502B204477270087FD35 /* StylizedViewController.swift */,
 				BD1B01E62041CEB300F472F6 /* VideoLayer.swift */,
 				BD94E15B203950710058C11D /* PEAServer.swift */,
@@ -274,6 +277,7 @@
 				BD1B01E72041CEB300F472F6 /* VideoLayer.swift in Sources */,
 				BD94E12E203950420058C11D /* AppDelegate.swift in Sources */,
 				BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */,
+				BD4E2BDB20448698008E13F5 /* SelectViewController.swift in Sources */,
 				BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */,
 				BDF8502C204477270087FD35 /* StylizedViewController.swift in Sources */,
 				BD94E15C203950710058C11D /* PEAServer.swift in Sources */,

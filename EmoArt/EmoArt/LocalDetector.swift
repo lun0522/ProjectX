@@ -10,7 +10,7 @@ import Foundation
 import CoreGraphics
 import Vision
 
-class LocalDetector: NSObject {
+class LocalDetector {
     
     static let sharedInstance = LocalDetector()
     static let kDetectionTimeIntervalThreshold = 0.5

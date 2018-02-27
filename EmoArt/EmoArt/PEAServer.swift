@@ -31,6 +31,9 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     var serviceBrowser = NetServiceBrowser()
     var resolverList = [NetService]()
     var serverAddress = ""
+    var isAddressFound: Bool {
+        return serverAddress.count != 0
+    }
     
     override init() {
         super.init()
@@ -104,7 +107,12 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
             log("Cannot decode data in \(sender)")
             return
         }
-        serverAddress = address;
+        // use address and stop browsing
+        guard self.isAddressFound == false else {
+            self.log("Server address already exists, discard address found in LAN")
+            return
+        }
+        serverAddress = address
         stopBrowsing()
         log("Found server in LAN: " + serverAddress)
     }
@@ -124,17 +132,20 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     
     // MARK: - HTTP requests
     
+    func setHeaderFields(_ headerFields: [String : String]?, for request: inout URLRequest) {
+        let _ = headerFields?.map { request.setValue($1, forHTTPHeaderField: $0) }
+    }
+    
     func queryServerAddress() {
         // setup request
         var request = URLRequest(url: URL(string: PEAServer.kLeanCloudUrl)!,
                                  cachePolicy: .reloadIgnoringCacheData,
                                  timeoutInterval: 10.0)
         request.httpMethod = "GET"
-        let _ = [
-            "X-LC-Id" : PEAServer.kLeanCloudAppId,
-            "X-LC-Key" : PEAServer.kLeanCloudAppKey,
-            "Content-Type" : "application/json",
-        ].map { request.setValue($1, forHTTPHeaderField: $0) }
+        setHeaderFields(["X-LC-Id": PEAServer.kLeanCloudAppId,
+                         "X-LC-Key": PEAServer.kLeanCloudAppKey,
+                         "Content-Type": "application/json"],
+                        for: &request)
         
         // start task
         let task = URLSession(configuration: .default).dataTask(with: request) {
@@ -163,15 +174,15 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                 return
             }
             // results[0]["address"] -> address: String
-            guard self.serverAddress.count != 0 else {
-                self.log("Server address already exists")
-                return
-            }
             guard let address = results[0]["address"] else {
                 self.log("Error: Response of query contains no address")
                 return
             }
             // use address and stop browsing
+            guard self.isAddressFound == false else {
+                self.log("Server address already exists, discard address retrieved through internet")
+                return
+            }
             self.serverAddress = address
             self.log("Found server through internet: " + address)
             self.stopBrowsing()
@@ -180,7 +191,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
     }
     
     public func sendData(_ data: Data,
-                         headerFields: [String : String],
+                         headerFields: [String : String]?,
                          operation: Operation,
                          timeout: TimeInterval,
                          responseHandler: @escaping ([String : Any]?, EMAError?) -> Swift.Void) {
@@ -188,7 +199,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
             responseHandler(nil, EMAError(domain: .sendingData, reason: reason))
         }
         
-        guard serverAddress.count != 0 else {
+        guard isAddressFound == true else {
             didFail(reason: "No server address found")
             return
         }
@@ -197,17 +208,19 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         var request = URLRequest(url: URL(string: serverAddress)!,
                                  cachePolicy: .reloadIgnoringCacheData,
                                  timeoutInterval: timeout)
+        
         switch operation {
         case .delete:
             request.httpMethod = "DELETE"
         default:
             request.httpMethod = "POST"
         }
-        let _ = [
-            "Operation" : operation.rawValue,
-            "Authentication" : PEAServer.kClientAuthentication,
-            "Content-Length" : "\(data.count)",
-            ].map { request.setValue($1, forHTTPHeaderField: $0) }
+        
+        setHeaderFields(headerFields, for: &request)
+        setHeaderFields(["Operation": operation.rawValue,
+                         "Authentication": PEAServer.kClientAuthentication,
+                         "Content-Length": "\(data.count)"],
+                        for: &request)
         
         // start task
         let task = URLSession(configuration: .default).uploadTask(with: request, from: data) {
@@ -244,14 +257,14 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                         didFail(reason: "No image info returned after retrieving")
                         return
                     }
-                    responseHandler(["info" : info,
-                                     "data" : data], nil)
+                    responseHandler(["info": info,
+                                     "data": data], nil)
                 case .transfer:
                     guard let data = returnedData else {
                         didFail(reason: "No image data returned after transfer")
                         return
                     }
-                    responseHandler(["data" : data], nil)
+                    responseHandler(["data": data], nil)
                 }
         }
         task.resume()
