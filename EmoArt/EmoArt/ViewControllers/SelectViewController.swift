@@ -43,10 +43,10 @@ class SelectViewController: UIViewController {
     }
     
     func sendDataWithAnimation(_ data: Data,
-                               headerFields: [String : String]?,
+                               headerFields: [String: String]?,
                                operation: PEAServer.Operation,
                                timeout: TimeInterval,
-                               responseHandler: @escaping ([String : Any]?, EMAError?) -> Swift.Void) {
+                               responseHandler: @escaping ([String: Any]?, EMAError?) -> Swift.Void) {
         DispatchQueue.main.async {
             self.view.addSubview(self.blurEffectView)
         }
@@ -68,10 +68,11 @@ class SelectViewController: UIViewController {
         DispatchQueue.main.async {
             UIView.animate(withDuration: 0.3, animations: {
                 self.blurEffectView.effect = UIBlurEffect(style: .dark)
-            }) { finished in
+            }, completion: {
+                finished in
                 self.transferIndicator.startAnimating()
                 self.view.addSubview(self.transferIndicator)
-            }
+            })
         }
     }
     
@@ -204,7 +205,10 @@ class SelectViewController: UIViewController {
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        let svc = segue.destination as! StylizedViewController
+        guard let svc = segue.destination as? StylizedViewController else {
+            assertionFailure("Internal error: wrong destination")
+            return
+        }
         svc.originalPhoto = originalPhoto
         svc.stylizedImage = stylizedImages[selectedPainting]
     }

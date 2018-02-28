@@ -13,7 +13,7 @@
         <!--Make a Face-->
         <scene sceneID="R3Q-8g-Bwf">
             <objects>
-                <viewController id="Rqi-CH-wBF" customClass="CaptureViewController" sceneMemberID="viewController">
+                <viewController id="Rqi-CH-wBF" customClass="CaptureViewController" customModule="EmoArt" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="MBN-um-SUa">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -23,18 +23,27 @@
                                 <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="18"/>
                                 <state key="normal" title="Switch Camera"/>
+                                <connections>
+                                    <action selector="tapSwitchCamera:" destination="Rqi-CH-wBF" eventType="touchUpInside" id="TbI-CA-XpE"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="b6g-zF-CzT">
                                 <rect key="frame" x="120" y="500" width="135" height="40"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="18"/>
                                 <state key="normal" title="Capture Face"/>
+                                <connections>
+                                    <action selector="tapCaptureFace:" destination="Rqi-CH-wBF" eventType="touchUpInside" id="sQd-Xf-rf3"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="QaF-Us-3KP">
                                 <rect key="frame" x="120" y="434" width="135" height="40"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <fontDescription key="fontDescription" type="system" pointSize="18"/>
                                 <state key="normal" title="Select Photo"/>
+                                <connections>
+                                    <action selector="tapSelectPhoto:" destination="Rqi-CH-wBF" eventType="touchUpInside" id="Xbe-PO-tf5"/>
+                                </connections>
                             </button>
                         </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
@@ -44,6 +53,9 @@
                         <barButtonItem key="backBarButtonItem" title="Back" id="2bC-JQ-aWQ"/>
                     </navigationItem>
                     <connections>
+                        <outlet property="captureFaceButton" destination="b6g-zF-CzT" id="sjt-9A-S5h"/>
+                        <outlet property="selectPhotoButton" destination="QaF-Us-3KP" id="2N4-EQ-U36"/>
+                        <outlet property="switchCameraButton" destination="NjH-UQ-Cgu" id="LP6-Xa-Gz9"/>
                         <segue destination="Plb-Mm-YA1" kind="show" identifier="showPickStyle" id="z6v-qA-CQg"/>
                     </connections>
                 </viewController>
@@ -54,7 +66,7 @@
         <!--Pick a Style-->
         <scene sceneID="9hM-I4-kmq">
             <objects>
-                <viewController id="Plb-Mm-YA1" customClass="SelectViewController" sceneMemberID="viewController">
+                <viewController id="Plb-Mm-YA1" customClass="SelectViewController" customModule="EmoArt" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="Y05-mI-oGF">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -135,7 +147,7 @@
         <!--Enjoy the Art!-->
         <scene sceneID="bV2-AB-t4J">
             <objects>
-                <viewController id="Olm-UY-KbJ" customClass="StylizedViewController" sceneMemberID="viewController">
+                <viewController id="Olm-UY-KbJ" customClass="StylizedViewController" customModule="EmoArt" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="VK9-Fj-Yrj">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>

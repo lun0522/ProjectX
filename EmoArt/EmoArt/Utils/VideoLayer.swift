@@ -37,7 +37,7 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
         }
         
         let videoOutput = AVCaptureVideoDataOutput()
-        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String : kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
+        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.setSampleBufferDelegate(layer, queue: DispatchQueue(label: "com.lun.emoart.videooutput.queue"))
         guard session.canAddOutput(videoOutput) else {
@@ -48,10 +48,6 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
         session.commitConfiguration()
         
         return layer
-    }
-    
-    public func setFrameRect(_ rect: CGRect) {
-        frame = rect
     }
     
     public func start() {

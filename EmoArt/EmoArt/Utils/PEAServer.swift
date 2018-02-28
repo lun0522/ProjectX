@@ -219,7 +219,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         setHeaderFields(headerFields, for: &request)
         setHeaderFields(["Operation": operation.rawValue,
                          "Authentication": PEAServer.kClientAuthentication,
-                         "Content-Length": "\(data.count)"],
+                         "Content-Length": String(data.count)],
                         for: &request)
         
         // start task

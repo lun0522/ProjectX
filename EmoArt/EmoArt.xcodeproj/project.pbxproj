@@ -7,18 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BD1B01E72041CEB300F472F6 /* VideoLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD1B01E62041CEB300F472F6 /* VideoLayer.swift */; };
-		BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */; };
-		BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4C66B4203B42110097BC0F /* EMAError.swift */; };
-		BD4E2BDB20448698008E13F5 /* SelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD4E2BDA20448698008E13F5 /* SelectViewController.swift */; };
+		BD5796DE204738DA00E2C0AE /* CaptureViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796DB204738DA00E2C0AE /* CaptureViewController.swift */; };
+		BD5796DF204738DA00E2C0AE /* StylizedViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796DC204738DA00E2C0AE /* StylizedViewController.swift */; };
+		BD5796E0204738DA00E2C0AE /* SelectViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796DD204738DA00E2C0AE /* SelectViewController.swift */; };
+		BD5796E5204738EA00E2C0AE /* PEAServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796E1204738EA00E2C0AE /* PEAServer.swift */; };
+		BD5796E6204738EA00E2C0AE /* LocalDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796E2204738EA00E2C0AE /* LocalDetector.swift */; };
+		BD5796E7204738EA00E2C0AE /* VideoLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796E3204738EA00E2C0AE /* VideoLayer.swift */; };
+		BD5796E8204738EA00E2C0AE /* EMAError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5796E4204738EA00E2C0AE /* EMAError.swift */; };
 		BD94E12E203950420058C11D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E12D203950420058C11D /* AppDelegate.swift */; };
 		BD94E133203950420058C11D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BD94E131203950420058C11D /* Main.storyboard */; };
 		BD94E135203950420058C11D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BD94E134203950420058C11D /* Assets.xcassets */; };
 		BD94E138203950420058C11D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BD94E136203950420058C11D /* LaunchScreen.storyboard */; };
 		BD94E143203950420058C11D /* EmoArtTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E142203950420058C11D /* EmoArtTests.swift */; };
 		BD94E14E203950420058C11D /* EmoArtUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E14D203950420058C11D /* EmoArtUITests.swift */; };
-		BD94E15C203950710058C11D /* PEAServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD94E15B203950710058C11D /* PEAServer.swift */; };
-		BDF8502C204477270087FD35 /* StylizedViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDF8502B204477270087FD35 /* StylizedViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,10 +40,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		BD1B01E62041CEB300F472F6 /* VideoLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoLayer.swift; sourceTree = "<group>"; };
-		BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDetector.swift; sourceTree = "<group>"; };
-		BD4C66B4203B42110097BC0F /* EMAError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EMAError.swift; sourceTree = "<group>"; };
-		BD4E2BDA20448698008E13F5 /* SelectViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectViewController.swift; sourceTree = "<group>"; };
+		BD5796DB204738DA00E2C0AE /* CaptureViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CaptureViewController.swift; sourceTree = "<group>"; };
+		BD5796DC204738DA00E2C0AE /* StylizedViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StylizedViewController.swift; sourceTree = "<group>"; };
+		BD5796DD204738DA00E2C0AE /* SelectViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SelectViewController.swift; sourceTree = "<group>"; };
+		BD5796E1204738EA00E2C0AE /* PEAServer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PEAServer.swift; sourceTree = "<group>"; };
+		BD5796E2204738EA00E2C0AE /* LocalDetector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LocalDetector.swift; sourceTree = "<group>"; };
+		BD5796E3204738EA00E2C0AE /* VideoLayer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VideoLayer.swift; sourceTree = "<group>"; };
+		BD5796E4204738EA00E2C0AE /* EMAError.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EMAError.swift; sourceTree = "<group>"; };
 		BD94E12A203950420058C11D /* EmoArt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EmoArt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD94E12D203950420058C11D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		BD94E132203950420058C11D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -55,8 +59,6 @@
 		BD94E149203950420058C11D /* EmoArtUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EmoArtUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD94E14D203950420058C11D /* EmoArtUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmoArtUITests.swift; sourceTree = "<group>"; };
 		BD94E14F203950420058C11D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		BD94E15B203950710058C11D /* PEAServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PEAServer.swift; sourceTree = "<group>"; };
-		BDF8502B204477270087FD35 /* StylizedViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylizedViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +86,27 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BD5796D92047388600E2C0AE /* ViewControllers */ = {
+			isa = PBXGroup;
+			children = (
+				BD5796DB204738DA00E2C0AE /* CaptureViewController.swift */,
+				BD5796DD204738DA00E2C0AE /* SelectViewController.swift */,
+				BD5796DC204738DA00E2C0AE /* StylizedViewController.swift */,
+			);
+			path = ViewControllers;
+			sourceTree = "<group>";
+		};
+		BD5796DA2047389700E2C0AE /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				BD5796E4204738EA00E2C0AE /* EMAError.swift */,
+				BD5796E2204738EA00E2C0AE /* LocalDetector.swift */,
+				BD5796E1204738EA00E2C0AE /* PEAServer.swift */,
+				BD5796E3204738EA00E2C0AE /* VideoLayer.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
 		BD94E121203950420058C11D = {
 			isa = PBXGroup;
 			children = (
@@ -108,12 +131,8 @@
 			isa = PBXGroup;
 			children = (
 				BD94E12D203950420058C11D /* AppDelegate.swift */,
-				BD4E2BDA20448698008E13F5 /* SelectViewController.swift */,
-				BDF8502B204477270087FD35 /* StylizedViewController.swift */,
-				BD1B01E62041CEB300F472F6 /* VideoLayer.swift */,
-				BD94E15B203950710058C11D /* PEAServer.swift */,
-				BD230F24203CAB0600FAE4D2 /* LocalDetector.swift */,
-				BD4C66B4203B42110097BC0F /* EMAError.swift */,
+				BD5796D92047388600E2C0AE /* ViewControllers */,
+				BD5796DA2047389700E2C0AE /* Utils */,
 				BD94E131203950420058C11D /* Main.storyboard */,
 				BD94E134203950420058C11D /* Assets.xcassets */,
 				BD94E136203950420058C11D /* LaunchScreen.storyboard */,
@@ -274,13 +293,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BD1B01E72041CEB300F472F6 /* VideoLayer.swift in Sources */,
+				BD5796E5204738EA00E2C0AE /* PEAServer.swift in Sources */,
+				BD5796E0204738DA00E2C0AE /* SelectViewController.swift in Sources */,
 				BD94E12E203950420058C11D /* AppDelegate.swift in Sources */,
-				BD230F25203CAB0600FAE4D2 /* LocalDetector.swift in Sources */,
-				BD4E2BDB20448698008E13F5 /* SelectViewController.swift in Sources */,
-				BD4C66B5203B42110097BC0F /* EMAError.swift in Sources */,
-				BDF8502C204477270087FD35 /* StylizedViewController.swift in Sources */,
-				BD94E15C203950710058C11D /* PEAServer.swift in Sources */,
+				BD5796DF204738DA00E2C0AE /* StylizedViewController.swift in Sources */,
+				BD5796DE204738DA00E2C0AE /* CaptureViewController.swift in Sources */,
+				BD5796E7204738EA00E2C0AE /* VideoLayer.swift in Sources */,
+				BD5796E8204738EA00E2C0AE /* EMAError.swift in Sources */,
+				BD5796E6204738EA00E2C0AE /* LocalDetector.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
