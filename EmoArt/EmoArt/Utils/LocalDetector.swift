@@ -18,33 +18,36 @@ class LocalDetector {
     
     enum DetectionResult {
         case notFound
-        case foundByDetection(CGRect)
-        case foundByTracking(CGRect)
+        case foundByDetection(CGRect, [CGPoint])
+        case foundByTracking(CGRect, [CGPoint])
     }
     
     let faceDetection = VNDetectFaceRectanglesRequest()
     let landmarksDetection = VNDetectFaceLandmarksRequest()
-    var lastObservation: VNFaceObservation?
+    var lastObservation: VNDetectedObjectObservation?
     let faceDetectionRequest = VNSequenceRequestHandler()
     let landmarksDetectionRequest = VNSequenceRequestHandler()
-    var faceTrackingRequest = VNSequenceRequestHandler()
-    var faceHandler: ((DetectionResult?, EMAError?) -> Swift.Void)?
-    var landmarksHandler: (([CGPoint]?, EMAError?) -> Swift.Void)?
+    var faceTrackingRequest: VNSequenceRequestHandler?
+    var resultHandler: ((DetectionResult?, EMAError?) -> Swift.Void)?
     var timestamp = Date().timeIntervalSince1970
     var tracking = false
     
     public func detectFace(inImage image: CIImage,
-                           faceDetectionResultHandler: @escaping (DetectionResult?, EMAError?) -> Swift.Void,
-                           landmarksDetectionResultHandler: @escaping ([CGPoint]?, EMAError?) -> Swift.Void) {
-        faceHandler = faceDetectionResultHandler
-        landmarksHandler = landmarksDetectionResultHandler
+                           forceRestart: Bool,
+                           resultHandler: @escaping (DetectionResult?, EMAError?) -> Swift.Void) {
+        self.resultHandler = resultHandler
         let currentTime = Date().timeIntervalSince1970
-        let doTracking = tracking && (currentTime - timestamp < LocalDetector.kDetectionTimeIntervalThreshold)
-        timestamp = currentTime
-        if doTracking {
-            trackFace(inImage: image)
-        } else {
+        if forceRestart {
+            timestamp = currentTime
             detectFace(inImage: image)
+        } else {
+            let doTracking = tracking && (currentTime - timestamp < LocalDetector.kDetectionTimeIntervalThreshold)
+            timestamp = currentTime
+            if doTracking {
+                trackFace(inImage: image)
+            } else {
+                detectFace(inImage: image)
+            }
         }
     }
     
@@ -52,72 +55,54 @@ class LocalDetector {
         print("[LocalDetector] " + message)
     }
     
-    func faceDetectionSuccess(_ result: DetectionResult) {
-        if let handler = faceHandler {
+    func detectionDidSuccess(_ result: DetectionResult) {
+        if let handler = resultHandler {
             handler(result, nil)
-            faceHandler = nil
+            resultHandler = nil
         } else {
-            log("No handler when face detection did success")
+            log("No handler when detection did success")
         }
     }
     
-    func landmarksDetectionSuccess(_ result: [CGPoint]) {
-        if let handler = landmarksHandler {
-            handler(result, nil)
-            landmarksHandler = nil
-        } else {
-            log("No handler when landmarks detection did success")
+    func detectionDidFail(in domain: EMAErrorDomain, reason: String) {
+        guard let handler = resultHandler else {
+            log("No handler when detection did fail")
+            return
         }
-    }
-    
-    func detectionFail(in domain: EMAErrorDomain, reason: String) {
-        switch domain {
-        case .faceDetection, .faceTracking:
-            if let handler = faceHandler {
-                handler(nil, EMAError(domain: domain, reason: reason))
-                faceHandler = nil
-            } else {
-                log("No handler when face detection did fail")
-            }
-        case .landmarksDetection:
-            if let handler = landmarksHandler {
-                handler(nil, EMAError(domain: domain, reason: reason))
-                landmarksHandler = nil
-            } else {
-                log("No handler when landmarks detection did fail")
-            }
-        default:
-            log("Detection failed with unknown error type")
-        }
+        handler(nil, EMAError(domain: domain, reason: reason))
     }
     
     func detectFace(inImage image: CIImage) {
         do {
             try faceDetectionRequest.perform([faceDetection], on: image)
         } catch {
-            detectionFail(in: .faceDetection, reason: error.localizedDescription)
+            detectionDidFail(in: .faceDetection, reason: error.localizedDescription)
             return
         }
         
         guard let results = faceDetection.results as? [VNFaceObservation] else {
-            detectionFail(in: .faceDetection, reason: "Wrong type")
+            detectionDidFail(in: .faceDetection, reason: "Wrong type")
             return
         }
         guard results.count > 0 else {
-            faceDetectionSuccess(.notFound)
+            detectionDidSuccess(.notFound)
             return
         }
         
         lastObservation = results.max {
             $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
         }
-        trackFace(inImage: image)
+        detectLandmarks(inImage: image)
         tracking = true
+        // https://stackoverflow.com/a/46355234/7873124
+        // Re-instantiate the request handler after the first frame used for tracking changes,
+        // to avoid that Vision throws "Exceeded maximum allowed number of Trackers" error
+        faceTrackingRequest = VNSequenceRequestHandler()
     }
     
     func trackFace(inImage image: CIImage) {
         guard let lastObservation = self.lastObservation else {
-            detectionFail(in: .faceTracking, reason: "No face observation")
+            detectionDidFail(in: .faceTracking, reason: "No face observation")
             return
         }
         
@@ -129,36 +114,30 @@ class LocalDetector {
             detectedObjectObservation: lastObservation,
             completionHandler: {
                 (request, error) in
-                var didFindFace = false
-                defer {
-                    // https://stackoverflow.com/a/46355234/7873124
-                    // Re-instantiate the request handler if the face is lost
-                    if !didFindFace {
-                        self.faceTrackingRequest = VNSequenceRequestHandler()
-                    }
-                }
-                
                 guard error == nil else {
-                    self.detectionFail(in: .faceTracking, reason: error!.localizedDescription)
+                    self.detectionDidFail(in: .faceTracking, reason: error!.localizedDescription)
                     return
                 }
                 guard let results = request.results, results.count > 0 else {
-                    self.detectionFail(in: .faceTracking, reason: "No face")
+                    self.detectionDidFail(in: .faceTracking, reason: "No face")
                     return
                 }
-                guard let observation = results[0] as? VNFaceObservation else {
-                    self.detectionFail(in: .faceTracking, reason: "Wrong type")
+                guard let observation = results[0] as? VNDetectedObjectObservation else {
+                    self.detectionDidFail(in: .faceTracking, reason: "Wrong type")
                     return
                 }
-                didFindFace = true
                 self.lastObservation = observation
         })
         faceTracking.trackingLevel = .accurate
         
+        guard let request = faceTrackingRequest else {
+            self.detectionDidFail(in: .faceTracking, reason: "No face tracking request")
+            return
+        }
         do {
-            try faceTrackingRequest.perform([faceTracking], on: image)
+            try request.perform([faceTracking], on: image)
         } catch {
-            self.detectionFail(in: .faceTracking, reason: error.localizedDescription)
+            self.detectionDidFail(in: .faceTracking, reason: error.localizedDescription)
             return
         }
         
@@ -166,29 +145,30 @@ class LocalDetector {
             tracking = false
             detectFace(inImage: image)
         } else {
-            detectLandmarks(inImage: image, bound: lastObservation.boundingBox)
+            detectLandmarks(inImage: image)
         }
     }
     
-    func detectLandmarks(inImage image: CIImage, bound boundingBox: CGRect) {
+    func detectLandmarks(inImage image: CIImage) {
+        let boundingBox = self.lastObservation!.boundingBox
         do {
             landmarksDetection.inputFaceObservations = [VNFaceObservation(boundingBox: boundingBox)]
             try landmarksDetectionRequest.perform([landmarksDetection], on: image)
         } catch {
-            detectionFail(in: .landmarksDetection, reason: error.localizedDescription)
+            detectionDidFail(in: .landmarksDetection, reason: error.localizedDescription)
             return
         }
         
         guard let results = landmarksDetection.results, results.count > 0 else {
-            detectionFail(in: .landmarksDetection, reason: "No face")
+            detectionDidFail(in: .landmarksDetection, reason: "No face")
             return
         }
         guard let faceObservation = results[0] as? VNFaceObservation else {
-            detectionFail(in: .landmarksDetection, reason: "Wrong type")
+            detectionDidFail(in: .landmarksDetection, reason: "Wrong type")
             return
         }
         guard let landmarks = faceObservation.landmarks else {
-            detectionFail(in: .landmarksDetection, reason: "No landmarks")
+            detectionDidFail(in: .landmarksDetection, reason: "No landmarks")
             return
         }
         
@@ -204,12 +184,9 @@ class LocalDetector {
             landmarks.innerLips
             ].map { landmarksPoints.append(contentsOf: scale($0?.normalizedPoints, toRect: boundingBox)) }
         
-        if tracking {
-            faceDetectionSuccess(.foundByTracking(boundingBox))
-        } else {
-            faceDetectionSuccess(.foundByDetection(boundingBox))
-        }
-        landmarksDetectionSuccess(landmarksPoints)
+        detectionDidSuccess(tracking ?
+            .foundByTracking(boundingBox, landmarksPoints) :
+            .foundByDetection(boundingBox, landmarksPoints))
     }
     
     func scale(_ points: [CGPoint]?, toRect rect: CGRect) -> [CGPoint] {

@@ -230,7 +230,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                     return
                 }
                 let httpResponse = response as! HTTPURLResponse
-                guard httpResponse.statusCode != 200 else {
+                guard httpResponse.statusCode == 200 else {
                     didFail(reason: "Code \(httpResponse.statusCode)")
                     return
                 }

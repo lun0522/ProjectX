@@ -10,7 +10,7 @@ import UIKit
 
 class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, VideoCaptureDelegate {
     
-    static let kLandmarksDotsRadius: CGFloat = 6.0
+    static let kDotsRadius: CGFloat = 6.0
     
     var videoLayer: VideoLayer!
     let shapeLayer = CAShapeLayer()
@@ -21,6 +21,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     var faceBoundingBox: CGRect?
     var selfieData: Data?
     var viewBoundsSize: CGSize!
+    var forceRestart = true
 
     @IBOutlet weak var selectPhotoButton: UIButton!
     @IBOutlet weak var captureFaceButton: UIButton!
@@ -35,11 +36,12 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
             showError("Cannot initialize video layer: " + error.localizedDescription)
             return
         }
-        view.layer.addSublayer(videoLayer)
-        view.layer.addSublayer(shapeLayer)
+        view.layer.insertSublayer(shapeLayer, at: 0)
+        view.layer.insertSublayer(videoLayer, at: 0)
         shapeLayer.strokeColor = UIColor.red.cgColor
         shapeLayer.lineWidth = 2.0
-        shapeLayer.setAffineTransform(CGAffineTransform(scaleX: -1, y: -1))
+        shapeLayer.affineTransform()
+        shapeLayer.setAffineTransform(CGAffineTransform(scaleX: 1, y: -1))
         imagePicker.delegate = self
         viewBoundsSize = view.bounds.size
         
@@ -77,13 +79,16 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
         lastFrame = frame
         LocalDetector.sharedInstance.detectFace(
             inImage: frame,
-            faceDetectionResultHandler: {
+            forceRestart: forceRestart,
+            resultHandler: {
                 (detectionResult, error) in
+                self.forceRestart = false
+                self.clearShapeLayer()
+                
                 var didFindFace = false
                 defer {
                     if !didFindFace {
                         self.faceBoundingBox = nil
-                        self.clearShapeLayer()
                     }
                 }
                 
@@ -92,34 +97,27 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
                     return
                 }
                 guard let result = detectionResult else {
-                    self.showError("Face detection returns no result")
+                    self.showError("Detection returns no result")
                     return
+                }
+                
+                func draw(_ landmarks: [CGPoint], in faceRect: CGRect, drawFace: Bool) {
+                    didFindFace = true
+                    self.faceBoundingBox = faceRect
+                    self.drawPoints(landmarks)
+                    if drawFace {
+                        self.drawRectangle(self.scale(faceRect, to: self.viewBoundsSize))
+                    }
                 }
                 
                 switch result {
                 case .notFound:
                     break
-                case let .foundByDetection(boundingBox):
-                    self.drawRectangle(self.scale(boundingBox, to: self.viewBoundsSize))
-                    didFindFace = true
-                    self.faceBoundingBox = boundingBox
-                case let .foundByTracking(boundingBox):
-                    didFindFace = true
-                    self.faceBoundingBox = boundingBox
+                case let .foundByDetection(faceBoundingBox, landmarks):
+                    draw(landmarks, in: faceBoundingBox, drawFace: true)
+                case let .foundByTracking(faceBoundingBox, landmarks):
+                    draw(landmarks, in: faceBoundingBox, drawFace: false)
                 }
-        },
-            landmarksDetectionResultHandler: {
-                (detectionResult, error) in
-                self.clearShapeLayer()
-                guard error == nil else {
-                    self.showError(error!.localizedDescription)
-                    return
-                }
-                guard let points = detectionResult else {
-                    self.showError("Landmarks detection returns no result")
-                    return
-                }
-                self.drawPoints(points)
         })
     }
     
@@ -212,7 +210,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         guard let svc = segue.destination as? SelectViewController else {
-            assertionFailure("Internal error: wrong destination")
+            assertionFailure("Internal error: Wrong destination")
             return
         }
         svc.selfieData = selfieData!
@@ -223,10 +221,10 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     // MARK: - draw UI elements
     
     func scale(_ rect: CGRect, to size: CGSize) -> CGRect {
-        return CGRect(x: rect.origin.x / rect.size.width * size.width,
-                      y: rect.origin.y / rect.size.height * size.height,
-                      width: size.width,
-                      height: size.height)
+        return CGRect(x: rect.origin.x * size.width,
+                      y: rect.origin.y * size.height,
+                      width: rect.size.width * size.width,
+                      height: rect.size.height * size.height)
     }
     
     func drawPoints(_ points: [CGPoint]) {
@@ -234,9 +232,11 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
             let _ = points.map {
                 let pointLayer = CAShapeLayer()
                 pointLayer.fillColor = UIColor.red.cgColor
-                let dotRect = CGRect(x: $0.x, y: $0.y,
-                                     width: CaptureViewController.kLandmarksDotsRadius,
-                                     height: CaptureViewController.kLandmarksDotsRadius)
+                let dotRect = CGRect(
+                    x: $0.x * self.viewBoundsSize.width - CaptureViewController.kDotsRadius / 2.0,
+                    y: $0.y * self.viewBoundsSize.height - CaptureViewController.kDotsRadius / 2.0,
+                    width: CaptureViewController.kDotsRadius,
+                    height: CaptureViewController.kDotsRadius)
                 pointLayer.path = UIBezierPath(ovalIn: dotRect).cgPath
                 self.shapeLayer.addSublayer(pointLayer)
             }
@@ -264,7 +264,17 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
             try videoLayer.switchCamera()
         } catch {
             showError("Error in switching camera: " + error.localizedDescription)
+            return
         }
+        
+        // flip shape layer horizontally
+        clearShapeLayer()
+        var transform = shapeLayer.affineTransform()
+        transform.a *= -1
+        shapeLayer.setAffineTransform(transform)
+        
+        // make sure to do face detection later
+        forceRestart = true
     }
     
 }

@@ -61,16 +61,15 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
     public func switchCamera() throws {
         capturerSession.beginConfiguration()
         
-        var newOrientation = AVCaptureDevice.Position.unspecified
         switch currentCameraPosition {
         case .front:
-            newOrientation = .back
+            currentCameraPosition = .back
         case .back, .unspecified:
-            newOrientation = .front
+            currentCameraPosition = .front
         }
         
         capturerSession.removeInput(capturerSession.inputs[0])
-        if let errorReason = addCamera(oriented: newOrientation) {
+        if let errorReason = addCamera(oriented: currentCameraPosition) {
             throw EMAError(domain: .videoLayerOperation, reason: errorReason)
         }
         
@@ -100,9 +99,6 @@ class VideoLayer: AVCaptureVideoPreviewLayer, AVCaptureVideoDataOutputSampleBuff
                        from connection: AVCaptureConnection) {
         if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
             var frame = CIImage(cvImageBuffer: pixelBuffer)
-            if currentCameraPosition == .back {
-                frame = frame.oriented(forExifOrientation: Int32(CGImagePropertyOrientation.upMirrored.rawValue))
-            }
             frame = frame.oriented(forExifOrientation: Int32(CGImagePropertyOrientation.leftMirrored.rawValue))
             capturerDelegate.didCaptureFrame(frame)
         }

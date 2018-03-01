@@ -22,7 +22,7 @@ struct EMAError: Error {
     var domain: EMAErrorDomain
     var reason: String
     
-    var errorDescription: String {
+    var localizedDescription: String {
         return "Error in " + domain.rawValue + ": " + reason
     }
     
