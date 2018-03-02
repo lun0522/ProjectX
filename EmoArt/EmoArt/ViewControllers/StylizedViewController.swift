@@ -20,7 +20,6 @@ class StylizedViewController: UIViewController {
         view.backgroundColor = UIColor.black
         imageView.contentMode = .scaleAspectFit
         imageView.image = stylizedImage
-        
     }
 
     @IBAction func longPressImage(_ sender: UILongPressGestureRecognizer) {
@@ -32,6 +31,7 @@ class StylizedViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "Save to album", style: .default, handler: { action in
             UIImageWriteToSavedPhotosAlbum(self.stylizedImage, self, #selector(self.image(_:didFinishSavingWithError:contextInfo:)), nil)
         }))
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
         DispatchQueue.main.async {
             self.present(alert, animated: true, completion: nil)
         }

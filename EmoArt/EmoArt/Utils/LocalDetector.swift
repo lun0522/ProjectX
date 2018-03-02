@@ -28,26 +28,24 @@ class LocalDetector {
     let faceDetectionRequest = VNSequenceRequestHandler()
     let landmarksDetectionRequest = VNSequenceRequestHandler()
     var faceTrackingRequest: VNSequenceRequestHandler?
-    var resultHandler: ((DetectionResult?, EMAError?) -> Swift.Void)?
+    var resultHandler: ((DetectionResult?, EMAError?) -> Void)?
     var timestamp = Date().timeIntervalSince1970
     var tracking = false
     
-    public func detectFace(inImage image: CIImage,
-                           forceRestart: Bool,
-                           resultHandler: @escaping (DetectionResult?, EMAError?) -> Swift.Void) {
+    /// empty body
+    /// used to initialize the singleton beforehand
+    public func initialize() { }
+    
+    public func detectFaceLandmarks(in image: CIImage,
+                                    resultHandler: @escaping (DetectionResult?, EMAError?) -> Void) {
         self.resultHandler = resultHandler
         let currentTime = Date().timeIntervalSince1970
-        if forceRestart {
-            timestamp = currentTime
-            detectFace(inImage: image)
+        let doTracking = tracking && (currentTime - timestamp < LocalDetector.kDetectionTimeIntervalThreshold)
+        timestamp = currentTime
+        if doTracking {
+            trackFace(inImage: image)
         } else {
-            let doTracking = tracking && (currentTime - timestamp < LocalDetector.kDetectionTimeIntervalThreshold)
-            timestamp = currentTime
-            if doTracking {
-                trackFace(inImage: image)
-            } else {
-                detectFace(inImage: image)
-            }
+            detectFace(inImage: image)
         }
     }
     

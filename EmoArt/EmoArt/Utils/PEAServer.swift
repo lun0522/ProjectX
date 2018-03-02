@@ -35,6 +35,10 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         return serverAddress.count != 0
     }
     
+    /// empty body
+    /// used to initialize the singleton beforehand
+    public func initialize() { }
+    
     override init() {
         super.init()
         searchForServerInLAN()
@@ -194,7 +198,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                          headerFields: [String : String]?,
                          operation: Operation,
                          timeout: TimeInterval,
-                         responseHandler: @escaping ([String : Any]?, EMAError?) -> Swift.Void) {
+                         responseHandler: @escaping ([String : Any]?, EMAError?) -> Void) {
         func didFail(reason: String) {
             responseHandler(nil, EMAError(domain: .sendingData, reason: reason))
         }
@@ -238,16 +242,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
                 // handle response
                 switch operation {
                 case .store, .delete:
-                    var info: [String : Any]?
-                    if let data = returnedData {
-                        do {
-                            info = try JSONSerialization.jsonObject(with: data, options: []) as? Dictionary
-                        } catch {
-                            self.log("Error in converting JSON after \(operation): \(error.localizedDescription)")
-                            return
-                        }
-                    }
-                    responseHandler(info, nil)
+                    responseHandler(nil, nil)
                 case .retrieve:
                     guard let data = returnedData else {
                         didFail(reason: "No data returned after retrieving")

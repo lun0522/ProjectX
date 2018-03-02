@@ -13,7 +13,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     static let kDotsRadius: CGFloat = 6.0
     
     var videoLayer: VideoLayer!
-    let shapeLayer = CAShapeLayer()
+    var shapeLayer: CAShapeLayer!
     let imagePicker = UIImagePickerController()
     var selectedPhoto: UIImage?
     var photoTimestamp: String?
@@ -21,7 +21,6 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     var faceBoundingBox: CGRect?
     var selfieData: Data?
     var viewBoundsSize: CGSize!
-    var forceRestart = true
 
     @IBOutlet weak var selectPhotoButton: UIButton!
     @IBOutlet weak var captureFaceButton: UIButton!
@@ -30,20 +29,24 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        LocalDetector.sharedInstance.initialize()
+        PEAServer.sharedInstance.initialize()
+        
         do {
             try videoLayer = VideoLayer.newLayer(withCamera: .front, delegate: self)
         } catch {
             showError("Cannot initialize video layer: " + error.localizedDescription)
             return
         }
+        
+        shapeLayer = CAShapeLayer()
+        shapeLayer.lineWidth = 2.0
+        shapeLayer.setAffineTransform(CGAffineTransform(scaleX: 1, y: -1))
         view.layer.insertSublayer(shapeLayer, at: 0)
         view.layer.insertSublayer(videoLayer, at: 0)
-        shapeLayer.strokeColor = UIColor.red.cgColor
-        shapeLayer.lineWidth = 2.0
-        shapeLayer.affineTransform()
-        shapeLayer.setAffineTransform(CGAffineTransform(scaleX: 1, y: -1))
-        imagePicker.delegate = self
+        
         viewBoundsSize = view.bounds.size
+        imagePicker.delegate = self
         
         let _ = [selectPhotoButton,
                  captureFaceButton,
@@ -77,12 +80,10 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     
     func didCaptureFrame(_ frame: CIImage) {
         lastFrame = frame
-        LocalDetector.sharedInstance.detectFace(
-            inImage: frame,
-            forceRestart: forceRestart,
+        LocalDetector.sharedInstance.detectFaceLandmarks(
+            in: frame,
             resultHandler: {
                 (detectionResult, error) in
-                self.forceRestart = false
                 self.clearShapeLayer()
                 
                 var didFindFace = false
@@ -169,8 +170,22 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
         }
         photoTimestamp = String(UInt(NSDate().timeIntervalSince1970 * 1000))
         selectedPhoto = info[UIImagePickerControllerOriginalImage] as? UIImage
-        guard let _ = selectedPhoto, let photoData = UIImageJPEGRepresentation(selectedPhoto!, 1.0) else {
-            showError("Cannot retrieve selected photo")
+        
+        guard let photo = selectedPhoto else {
+            showError("Cannnot retrieve photo")
+            return
+        }
+        
+        if picker.sourceType == .camera {
+            // rotate the retrieved image
+            UIGraphicsBeginImageContextWithOptions(photo.size, false, photo.scale);
+            photo.draw(in: CGRect(origin: CGPoint(x: 0, y: 0), size: photo.size))
+            selectedPhoto = UIGraphicsGetImageFromCurrentImageContext();
+            UIGraphicsEndImageContext();
+        }
+        
+        guard let photoData = UIImageJPEGRepresentation(selectedPhoto!, 1.0) else {
+            showError("Cannot extract photo data")
             return
         }
         request(data: photoData, operation: .store)
@@ -193,18 +208,22 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
             return
         }
         
-        // crop down the face part and mirror it
-        let faceImage = lastFrame!.cropped(to: scale(boundingBox, to: lastFrame!.extent.size))
-        let mirroredImage = faceImage.transformed(by: CGAffineTransform(scaleX: -1, y: 1))
+        // crop down face part
+        var faceImage = lastFrame!.cropped(to: scale(boundingBox, to: lastFrame!.extent.size))
+        // mirror it if using back camera
+        if videoLayer.currentCameraPosition == .back {
+            faceImage = faceImage.transformed(by: CGAffineTransform(scaleX: -1, y: 1))
+        }
         // convert CIImage to CGImage, and then to UIImage
         // otherwise UIImageJPEGRepresentation() will return nil
-        guard let cgImage = CIContext().createCGImage(mirroredImage, from: mirroredImage.extent) else {
+        guard let cgImage = CIContext().createCGImage(faceImage, from: faceImage.extent) else {
             showError("Cannot create cgImage")
             return
         }
         selfieData = UIImageJPEGRepresentation(UIImage(cgImage: cgImage), 1.0)
         
         videoLayer.stop()
+        clearShapeLayer()
         performSegue(withIdentifier: "showPickStyle", sender: self)
     }
     
@@ -255,7 +274,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     
     func clearShapeLayer() {
         DispatchQueue.main.async {
-            let _ = self.shapeLayer.sublayers?.map { $0.removeFromSuperlayer() }
+            self.shapeLayer.sublayers = nil
         }
     }
     
@@ -266,15 +285,9 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
             showError("Error in switching camera: " + error.localizedDescription)
             return
         }
-        
         // flip shape layer horizontally
         clearShapeLayer()
-        var transform = shapeLayer.affineTransform()
-        transform.a *= -1
-        shapeLayer.setAffineTransform(transform)
-        
-        // make sure to do face detection later
-        forceRestart = true
+        shapeLayer.setAffineTransform(shapeLayer.affineTransform().scaledBy(x: -1, y: 1))
     }
     
 }

@@ -18,7 +18,7 @@ class SelectViewController: UIViewController {
     let transferIndicator = UIActivityIndicatorView(activityIndicatorStyle: .whiteLarge)
     var portraits = [UIImage]()
     var paintings = [UIImage]()
-    var paintingsId = [String]()
+    var paintingsId = [Int]()
     var stylizedImages = [Int : UIImage]()
     
     @IBOutlet weak var paintingView: UIImageView!
@@ -28,6 +28,8 @@ class SelectViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .black
+        paintingView.contentMode = .scaleAspectFit
         blurEffectView.frame = view.frame
         transferIndicator.center = view.center
         transferIndicator.hidesWhenStopped = true
@@ -46,17 +48,25 @@ class SelectViewController: UIViewController {
                                headerFields: [String: String]?,
                                operation: PEAServer.Operation,
                                timeout: TimeInterval,
-                               responseHandler: @escaping ([String: Any]?, EMAError?) -> Swift.Void) {
+                               responseHandler: @escaping ([String: Any]?, EMAError?) -> Void) {
         DispatchQueue.main.async {
             self.view.addSubview(self.blurEffectView)
+            self.transferIndicator.startAnimating()
+            
+            UIView.animate(withDuration: 0.3, animations: {
+                self.blurEffectView.effect = UIBlurEffect(style: .dark)
+            }, completion: { finished in
+                self.view.addSubview(self.transferIndicator)
+            })
         }
         
         PEAServer.sharedInstance.sendData(data, headerFields: headerFields, operation: operation, timeout: timeout, responseHandler: {
             (response, error) in
-            responseHandler(response, error)
             DispatchQueue.main.async {
                 self.transferIndicator.stopAnimating()
                 self.transferIndicator.removeFromSuperview()
+                responseHandler(response, error)
+                
                 UIView.animate(withDuration: 0.3, animations: {
                     self.blurEffectView.effect = nil
                 }, completion: { finished in
@@ -64,17 +74,9 @@ class SelectViewController: UIViewController {
                 })
             }
         })
-        
-        DispatchQueue.main.async {
-            UIView.animate(withDuration: 0.3, animations: {
-                self.blurEffectView.effect = UIBlurEffect(style: .dark)
-            }, completion: {
-                finished in
-                self.transferIndicator.startAnimating()
-                self.view.addSubview(self.transferIndicator)
-            })
-        }
     }
+    
+    // MARK: - retrieve painting with selfie
     
     func retrievePaintings() {
         sendDataWithAnimation(
@@ -92,8 +94,9 @@ class SelectViewController: UIViewController {
                 // response -> info: [[String : Any]]
                 //             data: Data (painting0, portrait0, painting1, portrait1, ...)
                 guard let _ = response,
-                    let infoData = response!["info"] as? Data,
-                    let imageData = response!["data"] as? Data else {
+                    let infoString = response!["info"] as? String,
+                    let infoData = infoString.data(using: .utf8),
+                    let data = response!["data"] as? Data else {
                         self.showError("No data returned")
                         return
                 }
@@ -112,9 +115,9 @@ class SelectViewController: UIViewController {
                 // extract data for each image
                 var offset: Int = 0
                 func image(dataLength: Int, appendTo array: inout [UIImage]) -> Bool {
-                    guard let image = UIImage(data: imageData.subdata(in:
-                        imageData.startIndex.advanced(by: offset) ..<
-                            imageData.startIndex.advanced(by: offset + dataLength))) else {
+                    guard let image = UIImage(data: data.subdata(in:
+                        data.startIndex.advanced(by: offset) ..<
+                            data.startIndex.advanced(by: offset + dataLength))) else {
                                 return false
                     }
                     array.append(image)
@@ -123,7 +126,7 @@ class SelectViewController: UIViewController {
                 }
                 
                 let _ = infoArray!.map {
-                    guard let paintingId = $0["Painting-Id"] as? String,
+                    guard let paintingId = $0["Painting-Id"] as? Int,
                         let paintingDataLength = $0["Painting-Length"] as? Int,
                         let portraitDataLength = $0["Portrait-Length"] as? Int else {
                             self.showError("Info incomplete: \($0)")
@@ -151,6 +154,8 @@ class SelectViewController: UIViewController {
         }
     }
     
+    // MARK: - select and show paintings
+    
     func selectPainting(index: Int) {
         if selectedPainting != index {
             selectedPainting = index
@@ -170,16 +175,20 @@ class SelectViewController: UIViewController {
         selectPainting(index: 2)
     }
     
+    // MARK: - transfer style with caching
+    
     @IBAction func pushStylized(_ sender: UIButton) {
-        var willPush = true
         // do transfer only if stylized image not found in cache
-        if !stylizedImages.keys.contains(selectedPainting) {
-            willPush = false
-            let semaphore = DispatchSemaphore(value: 0)
+        if stylizedImages.keys.contains(selectedPainting) {
+            performSegue(withIdentifier: "showStylizedImage", sender: self)
+        } else {
+            sender.isSelected = true
+            sender.isUserInteractionEnabled = false
+            
             sendDataWithAnimation(
                 Data(),
                 headerFields: ["Photo-Timestamp": photoTimestamp,
-                               "Style-Id": paintingsId[selectedPainting]],
+                               "Style-Id": String(paintingsId[selectedPainting])],
                 operation: .transfer,
                 timeout: 300,
                 responseHandler: {
@@ -192,21 +201,18 @@ class SelectViewController: UIViewController {
                         self.showError("No data returned")
                         return
                     }
+                    
                     self.stylizedImages[self.selectedPainting] = UIImage(data: imageData)
                     self.performSegue(withIdentifier: "showStylizedImage", sender: self)
-                    willPush = true
-                    semaphore.signal()
+                    sender.isSelected = false
+                    sender.isUserInteractionEnabled = true
             })
-            semaphore.wait()
-        }
-        if willPush {
-            performSegue(withIdentifier: "showStylizedImage", sender: self)
         }
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         guard let svc = segue.destination as? StylizedViewController else {
-            assertionFailure("Internal error: wrong destination")
+            assertionFailure("Internal error: Wrong destination")
             return
         }
         svc.originalPhoto = originalPhoto
