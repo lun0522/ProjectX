@@ -2,16 +2,16 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
 from PIL import Image
 from io import BytesIO
-from detector import create_rect, detect_landmarks
+from core.detector import create_rect, detect_landmarks
 import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
-from comparator import retrieve_painting
-from dbHandler import model_dir, tmp_dir, get_painting_filename
+from core.comparator import retrieve_painting
+from core.paintingDB import model_dir, tmp_dir, get_painting_filename
 import os
 import requests
 import subprocess
-from transfer import StyleTransfer
+from transfer.transfer import StyleTransfer
 import json
 
 host_name = ""  # if use "localhost", this server will only be accessible for the local machine

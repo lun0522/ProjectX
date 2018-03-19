@@ -2,8 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from multiprocessing import Manager
 import os
-from detector import detect
-import dbHandler
+from core.detector import detect
+from core import paintingDB
 
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "AppleWebKit/537.1 (KHTML, like Gecko) "
@@ -33,7 +33,7 @@ def fetch_image(params):
         return None, None
 
 
-def crawl(max_storage, directory=dbHandler.downloads_dir, do_detection=True):
+def crawl(max_storage, directory=paintingDB.downloads_dir, do_detection=True):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -65,25 +65,25 @@ def crawl(max_storage, directory=dbHandler.downloads_dir, do_detection=True):
                 title = title[:251]
 
             # only download those haven't been seen before
-            if dbHandler.did_not_download(title):
+            if paintingDB.did_not_download(title):
                 will_fetch.append((url, title, count))
             else:
                 print("Already exists: {}".format(title))
 
         for title, url in pool.map_async(fetch_image, will_fetch).get():
             if title and url:
-                dbHandler.store_download_info(title, url)
+                paintingDB.store_download_info(title, url)
         print("Download finished.")
 
     except Exception as e:
         print("Error in download: {}".format(e))
 
     finally:
-        dbHandler.commit_change()
+        paintingDB.commit_change()
         if do_detection:
             detect(directory)
         else:
-            dbHandler.cleanup()
+            paintingDB.cleanup()
 
 
 if __name__ == "__main__":

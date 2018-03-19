@@ -1,14 +1,17 @@
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
-from dbHandler import get_all_landmarks
+from core.paintingDB import get_all_landmarks
 
 # ("landmark name", (start_index, end_index (exclusive)), weight)
 landmark_map = [
-    ("leftEyebrow", (0, 5), 1.0),
-    ("rightEyebrow", (5, 10), 1.0),
-    ("leftEye", (10, 16), 1.0),
-    ("rightEye", (16, 22), 1.0),
-    ("innerLip", (22, 30), 4.0),
+    ("faceContour",  ( 0, 17), ( 0, 16), 1.0),
+    ("leftEyebrow",  (17, 22), (17, 21), 2.0),
+    ("rightEyebrow", (22, 27), (22, 26), 2.0),
+    ("nose",         (27, 36), (31, 35), 1.0),
+    ("leftEye",      (36, 42), (36, 39), 1.0),
+    ("rightEye",     (42, 48), (42, 45), 1.0),
+    ("outerLip",     (48, 60), (48, 54), 1.0),
+    ("innerLip",     (60, 68), (60, 64), 4.0),
 ]
 
 

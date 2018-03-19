@@ -111,7 +111,7 @@ class LocalDetector {
         let faceTracking = VNTrackObjectRequest(
             detectedObjectObservation: lastObservation,
             completionHandler: {
-                (request, error) in
+                [unowned self] (request, error) in
                 guard error == nil else {
                     self.detectionDidFail(in: .faceTracking, reason: error!.localizedDescription)
                     return

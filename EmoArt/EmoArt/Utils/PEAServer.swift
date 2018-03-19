@@ -153,7 +153,7 @@ class PEAServer: NSObject, NetServiceDelegate, NetServiceBrowserDelegate {
         
         // start task
         let task = URLSession(configuration: .default).dataTask(with: request) {
-            (returnedData, response, error) in
+            [unowned self] (returnedData, response, error) in
             guard error == nil else {
                 self.log("Error in requesting server address: " + error!.localizedDescription)
                 return

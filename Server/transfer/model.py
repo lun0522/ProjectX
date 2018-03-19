@@ -3,13 +3,11 @@ From: https://github.com/robertomest/neural-style-keras/blob/master/model.py
 This module contains functions for building the pastiche model.
 '''
 
-import keras
 from keras.models import Model
 from keras.layers import (Convolution2D, Activation, UpSampling2D,
-                          ZeroPadding2D, Input, BatchNormalization,
-                          merge, Lambda)
-from layers import (ReflectionPadding2D, InstanceNormalization,
-                    ConditionalInstanceNormalization)
+                          Input, merge, Lambda)
+from transfer.layers import (ReflectionPadding2D, InstanceNormalization,
+                             ConditionalInstanceNormalization)
 from keras.initializations import normal
 
 # Initialize weights with normal distribution with std 0.01

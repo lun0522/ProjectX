@@ -54,14 +54,16 @@ class SelectViewController: UIViewController {
             self.transferIndicator.startAnimating()
             
             UIView.animate(withDuration: 0.3, animations: {
+                [unowned self] in
                 self.blurEffectView.effect = UIBlurEffect(style: .dark)
-            }, completion: { finished in
+            }, completion: {
+                [unowned self] finished in
                 self.view.addSubview(self.transferIndicator)
             })
         }
         
         PEAServer.sharedInstance.sendData(data, headerFields: headerFields, operation: operation, timeout: timeout, responseHandler: {
-            (response, error) in
+            [unowned self] (response, error) in
             DispatchQueue.main.async {
                 self.transferIndicator.stopAnimating()
                 self.transferIndicator.removeFromSuperview()
@@ -84,7 +86,7 @@ class SelectViewController: UIViewController {
             headerFields: nil,
             operation: .retrieve,
             timeout: 10) {
-                (response, error) in
+                [unowned self] (response, error) in
                 guard error == nil else {
                     self.showError(error!.localizedDescription)
                     return
@@ -100,9 +102,9 @@ class SelectViewController: UIViewController {
                         self.showError("No data returned")
                         return
                 }
-                var infoArray: [[String : Any]]?
+                var infoArray: [[String : Int]]?
                 do {
-                    infoArray = try JSONSerialization.jsonObject(with: infoData, options: []) as? [[String : Any]]
+                    infoArray = try JSONSerialization.jsonObject(with: infoData, options: []) as? [[String : Int]]
                 } catch {
                     self.showError("Error in converting JSON: " + error.localizedDescription)
                     return
@@ -126,9 +128,9 @@ class SelectViewController: UIViewController {
                 }
                 
                 let _ = infoArray!.map {
-                    guard let paintingId = $0["Painting-Id"] as? Int,
-                        let paintingDataLength = $0["Painting-Length"] as? Int,
-                        let portraitDataLength = $0["Portrait-Length"] as? Int else {
+                    guard let paintingId = $0["Painting-Id"],
+                        let paintingDataLength = $0["Painting-Length"],
+                        let portraitDataLength = $0["Portrait-Length"] else {
                             self.showError("Info incomplete: \($0)")
                             return
                     }
@@ -192,7 +194,7 @@ class SelectViewController: UIViewController {
                 operation: .transfer,
                 timeout: 300,
                 responseHandler: {
-                    (response, error) in
+                    [unowned self] (response, error) in
                     guard error == nil else {
                         self.showError("Error in transfer: " + error!.localizedDescription)
                         return

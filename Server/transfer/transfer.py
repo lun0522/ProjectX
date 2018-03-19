@@ -11,7 +11,7 @@ from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg16
 import h5py
 import yaml
-from model import pastiche_model
+from transfer.model import pastiche_model
 import time
 
 

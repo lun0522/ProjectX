@@ -13,7 +13,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     static let kDotsRadius: CGFloat = 6.0
     
     var videoLayer: VideoLayer!
-    var shapeLayer: CAShapeLayer!
+    let shapeLayer = CAShapeLayer()
     let imagePicker = UIImagePickerController()
     var selectedPhoto: UIImage?
     var photoTimestamp: String?
@@ -39,7 +39,6 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
             return
         }
         
-        shapeLayer = CAShapeLayer()
         shapeLayer.lineWidth = 2.0
         shapeLayer.setAffineTransform(CGAffineTransform(scaleX: 1, y: -1))
         view.layer.insertSublayer(shapeLayer, at: 0)
@@ -83,7 +82,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
         LocalDetector.sharedInstance.detectFaceLandmarks(
             in: frame,
             resultHandler: {
-                (detectionResult, error) in
+                [unowned self] (detectionResult, error) in
                 self.clearShapeLayer()
                 
                 var didFindFace = false
@@ -126,10 +125,12 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
     
     @IBAction func tapSelectPhoto(_ sender: UIButton) {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "From album", style: .default, handler: { action in
+        alert.addAction(UIAlertAction(title: "From album", style: .default, handler: {
+            [unowned self] action in
             self.showImagePicker(sourceType: .photoLibrary)
         }))
-        alert.addAction(UIAlertAction(title: "Take a photo", style: .default, handler: { action in
+        alert.addAction(UIAlertAction(title: "Take a photo", style: .default, handler: {
+            [unowned self] action in
             self.showImagePicker(sourceType: .camera)
         }))
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
@@ -157,7 +158,7 @@ class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePicke
                 headerFields: ["Photo-Timestamp": photoTimestamp!],
                 operation: operation,
                 timeout: 10) {
-                    (response, error) in
+                    [unowned self] (response, error) in
                     guard error == nil else {
                         self.showError("Error in " + operation.rawValue + ": " + error!.localizedDescription)
                         return
