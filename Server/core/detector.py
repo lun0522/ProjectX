@@ -26,12 +26,14 @@ def detect_landmarks(img, bbox):
     for _, (start, end), (left, right), _ in landmark_map:
         leftmost, rightmost = left - start, right - start
         points = landmarks[:, start: end]
-        # let the x coordinate of the leftmost point be 0
-        # let the mean of y coordinates of all points be 0
+        # let the x coordinate of the leftmost point be 0.0
+        # let the mean of y coordinates of all points be 0.0
         points -= np.array([points[0][leftmost], np.mean(points[1, :])]).reshape(2, 1)
-        # let the x coordinate of the rightmost point be 1.0
+        # let the x coordinate of the rightmost point be 2.0
         # scale all y coordinates at the same time with the same ratio
-        points *= 1.0 / points[0][rightmost]
+        points *= 2.0 / points[0][rightmost]
+        # let the x coordinate of the leftmost point be -1.0, and that of the rightmost be 1.0
+        points[0, :] -= 1.0
 
     return np.hstack((landmarks[0, :], landmarks[1, :]))
 

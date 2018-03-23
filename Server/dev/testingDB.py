@@ -1,5 +1,6 @@
 import mysql.connector
 import json
+import os
 
 """
 mysql> use model
@@ -14,6 +15,10 @@ mysql> DESCRIBE Training/Testing/Validation/Pool;
 +------------+---------+------+-----+---------+----------------+
 """
 
+dataset_dir = "/Users/lun/Desktop/ProjectX/dataset"
+emotions = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
+emotions_dir = [os.path.join(dataset_dir, emotion) for emotion in emotions]
+
 cnx = mysql.connector.connect(user="root",
                               password="password",
                               host="localhost",
@@ -24,7 +29,7 @@ query_landmarks = "SELECT * FROM {}"
 
 insert_landmark = " ".join(("INSERT INTO {}",
                             "(emotion_id, points)",
-                            "VALUES (%s, %s, %s)"))
+                            "VALUES (%s, %s)"))
 
 
 def get_landmarks(branch):

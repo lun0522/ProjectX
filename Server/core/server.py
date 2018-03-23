@@ -6,11 +6,11 @@ from core.detector import create_rect, detect_landmarks
 import socket
 from zeroconf import ServiceInfo, Zeroconf
 import numpy as np
-from core.comparator import retrieve_painting
-from core.paintingDB import model_dir, tmp_dir, get_painting_filename
+from core.paintingDB import model_dir, tmp_dir, get_painting_filename, get_all_landmarks
 import os
 import requests
 import subprocess
+from core.comparator import Comparator
 from transfer.transfer import StyleTransfer
 import json
 
@@ -23,6 +23,7 @@ app_key = "0azk0HxCkcrtNGIKC5BMwxnr"
 cloud_url = "https://us-api.leancloud.cn/1.1/classes/Server/5a40a4eee37d040044aa4733"
 valid_operations = {"Store", "Delete", "Retrieve", "Transfer"}
 
+comparator = Comparator(np.array([row[2] for row in get_all_landmarks()]), 3)
 style_transfer = StyleTransfer(model_dir)
 
 
@@ -91,7 +92,7 @@ class MyServer(BaseHTTPRequestHandler):
             landmarks = detect_landmarks(np.array(face_image),
                                          create_rect(0, 0, face_image.size[0], face_image.size[1]))
             image_info, image_bytes = [], BytesIO()
-            for pid, bbox in retrieve_painting(landmarks):
+            for pid, bbox in comparator(landmarks):
                 prev_len = len(image_bytes.getvalue())
                 original = Image.open(get_painting_filename(pid))
                 original.save(image_bytes, format="jpeg")
