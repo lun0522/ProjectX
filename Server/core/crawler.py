@@ -70,7 +70,7 @@ def crawl(max_storage, directory=paintingDB.downloads_dir, do_detection=True):
             else:
                 print("Already exists: {}".format(title))
 
-        for title, url in pool.map_async(fetch_image, will_fetch).get():
+        for title, url in pool.map(fetch_image, will_fetch):
             if title and url:
                 paintingDB.store_download_info(title, url)
         print("Download finished.")
