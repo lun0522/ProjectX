@@ -90,7 +90,7 @@ class MyServer(BaseHTTPRequestHandler):
             face_image = Image.open(BytesIO(self.rfile.read(content_length)))
 
             landmarks = detect_landmarks(np.array(face_image),
-                                         create_rect(0, 0, face_image.size[0], face_image.size[1]))
+                                         create_rect(0, 0, face_image.size[1], face_image.size[0]))
             image_info, image_bytes = [], BytesIO()
             for pid, bbox in comparator(landmarks):
                 prev_len = len(image_bytes.getvalue())

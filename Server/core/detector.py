@@ -23,7 +23,7 @@ def detect_face(img):
 def detect_landmarks(img, bbox):
     landmarks = np.array([[point.x, point.y] for point in predictor(img, bbox).parts()], dtype=np.float64).transpose()
 
-    for _, (start, end), (left, right), _ in landmark_map:
+    for _, (start, end), (left, right) in landmark_map:
         leftmost, rightmost = left - start, right - start
         points = landmarks[:, start: end]
         # let the x coordinate of the leftmost point be 0.0
