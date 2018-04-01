@@ -93,7 +93,7 @@ def store_painting_info(url):
     return cursor.lastrowid
 
 
-def store_landmarks(painting_id, landmarks, bounding_box):
+def store_landmarks(landmarks, painting_id, bounding_box):
     cursor.execute(insert_landmark, (painting_id, json.dumps(bounding_box), json.dumps(landmarks)))
 
 

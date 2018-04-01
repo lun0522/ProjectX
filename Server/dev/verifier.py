@@ -79,6 +79,7 @@ class Verifier(object):
     @staticmethod
     def build_database(directory=testingDB.dataset_dir):
         try:
+            copied = 0
             for emotion, emotion_id in zip(testingDB.emotions, range(len(testingDB.emotions))):
                 print("Processing {}...".format(emotion))
 
@@ -98,8 +99,14 @@ class Verifier(object):
                 for img_file in files:
                     processed += 1
                     img_data = io.imread(img_file)
-                    landmarks = detect_landmarks(img_data, create_rect(0, 0, img_data.shape[1], img_data.shape[0]))
-                    testingDB.store_landmarks(get_database_branch(), emotion_id, landmarks.tolist())
+                    bounding_box = create_rect(0, 0, img_data.shape[1], img_data.shape[0])
+                    landmarks = detect_landmarks(img_data, bounding_box)[1].tolist()
+                    testingDB.store_landmarks(get_database_branch(), emotion_id, landmarks)
+
+                    copied += 1
+                    testingDB.store_landmarks("Total", emotion_id, landmarks)
+                    shutil.copy(img_file, os.path.join(os.path.join(directory, "total"),
+                                                       str(copied).zfill(5) + ".jpg"))
 
                     print("Processed ({}/{})".format(processed, total))
 
@@ -164,4 +171,4 @@ class Verifier(object):
 
 
 if __name__ == "__main__":
-    Verifier().exhaustive_search()
+    Verifier.build_database()

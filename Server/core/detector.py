@@ -6,8 +6,19 @@ from skimage import io
 import mysql.connector
 import shutil
 import numpy as np
-from core.comparator import landmark_map
 
+
+# ("landmark name", (start_index, end_index (exclusive)), weight)
+landmark_map = [
+    ("faceContour",  ( 0, 17), ( 0, 16)),
+    ("leftEyebrow",  (17, 22), (17, 21)),
+    ("rightEyebrow", (22, 27), (22, 26)),
+    ("nose",         (27, 36), (31, 35)),
+    ("leftEye",      (36, 42), (36, 39)),
+    ("rightEye",     (42, 48), (42, 45)),
+    ("outerLip",     (48, 60), (48, 54)),
+    ("innerLip",     (60, 68), (60, 64)),
+]
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(paintingDB.predictor_path)
 
@@ -16,13 +27,16 @@ def create_rect(xlo, ylo, xhi, yhi):
     return dlib.rectangle(xlo, ylo, xhi, yhi)
 
 
+def break_rect(rect):
+    return [rect.left(), rect.top(), rect.right(), rect.bottom()]
+
+
 def detect_face(img):
     return [bbox for num, bbox in enumerate(detector(img, 1))]
 
 
-def detect_landmarks(img, bbox):
-    landmarks = np.array([[point.x, point.y] for point in predictor(img, bbox).parts()], dtype=np.float64).transpose()
-
+def normalize_landmarks(landmarks):
+    landmarks = np.array(landmarks, dtype=np.float64).transpose()
     for _, (start, end), (left, right) in landmark_map:
         leftmost, rightmost = left - start, right - start
         points = landmarks[:, start: end]
@@ -36,6 +50,11 @@ def detect_landmarks(img, bbox):
         points[0, :] -= 1.0
 
     return np.hstack((landmarks[0, :], landmarks[1, :]))
+
+
+def detect_landmarks(img, bbox):
+    landmarks = [[point.x, point.y] for point in predictor(img, bbox).parts()]
+    return landmarks, normalize_landmarks(landmarks)
 
 
 def detect(directory=paintingDB.downloads_dir):
@@ -70,8 +89,8 @@ def detect(directory=paintingDB.downloads_dir):
 
                     # store painting id, landmarks points and bounding box for each face
                     for idx, bbox in enumerate(faces):
-                        paintingDB.store_landmarks(painting_id, detect_landmarks(img_data, bbox).tolist(),
-                                                   (bbox.left(), bbox.right(), bbox.bottom(), bbox.top()))
+                        paintingDB.store_landmarks(detect_landmarks(img_data, bbox)[1].tolist(),
+                                                   painting_id, break_rect(bbox))
 
                     # move the image to paintings folder
                     shutil.move(directory + img_file, paintingDB.get_painting_filename(painting_id))

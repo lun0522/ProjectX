@@ -23,7 +23,10 @@ app_key = "0azk0HxCkcrtNGIKC5BMwxnr"
 cloud_url = "https://us-api.leancloud.cn/1.1/classes/Server/5a40a4eee37d040044aa4733"
 valid_operations = {"Store", "Delete", "Retrieve", "Transfer"}
 
-comparator = Comparator(np.array([row[2] for row in get_all_landmarks()]), 3)
+all_landmarks = get_all_landmarks()
+all_pid = [row[0] for row in all_landmarks]
+all_bbox = [row[0] for row in all_landmarks]
+comparator = Comparator(np.array([row[2] for row in all_landmarks]), 3)
 style_transfer = StyleTransfer(model_dir)
 
 
@@ -89,10 +92,12 @@ class MyServer(BaseHTTPRequestHandler):
             content_length = int(self.headers["Content-Length"])
             face_image = Image.open(BytesIO(self.rfile.read(content_length)))
 
-            landmarks = detect_landmarks(np.array(face_image),
-                                         create_rect(0, 0, face_image.size[1], face_image.size[0]))
+            bounding_box = create_rect(0, 0, face_image.size[1], face_image.size[0])
+            landmarks = detect_landmarks(np.array(face_image), bounding_box)[1]
+
             image_info, image_bytes = [], BytesIO()
-            for pid, bbox in comparator(landmarks):
+            for idx in comparator(landmarks):
+                pid, bbox = all_pid[idx], all_bbox[idx]
                 prev_len = len(image_bytes.getvalue())
                 original = Image.open(get_painting_filename(pid))
                 original.save(image_bytes, format="jpeg")
