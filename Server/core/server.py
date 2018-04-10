@@ -25,7 +25,7 @@ valid_operations = {"Store", "Delete", "Retrieve", "Transfer"}
 
 all_landmarks = get_all_landmarks()
 all_pid = [row[0] for row in all_landmarks]
-all_bbox = [row[0] for row in all_landmarks]
+all_bbox = [row[1] for row in all_landmarks]
 comparator = Comparator(np.array([row[2] for row in all_landmarks]), 3)
 style_transfer = StyleTransfer(model_dir)
 
@@ -102,7 +102,7 @@ class MyServer(BaseHTTPRequestHandler):
                 original = Image.open(get_painting_filename(pid))
                 original.save(image_bytes, format="jpeg")
                 mid_len = len(image_bytes.getvalue())
-                cropped = original.crop((bbox[0], bbox[3], bbox[1], bbox[2]))
+                cropped = original.crop(bbox)
                 cropped.save(image_bytes, format="jpeg")
                 image_info.append({
                     "Painting-Id": pid,

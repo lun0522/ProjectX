@@ -60,10 +60,17 @@ def detect_landmarks(img, bbox):
 def detect(directory=paintingDB.downloads_dir):
     if not os.path.exists(paintingDB.paintings_dir):
         os.makedirs(paintingDB.paintings_dir)
+    if not os.path.exists(paintingDB.faces_dir):
+        os.makedirs(paintingDB.faces_dir)
     os.chdir(directory)
 
     try:
-        for img_file in sorted(glob.glob("*.jpg")):
+        files = glob.glob("*.jpg")
+        total, processed = len(files), 0
+
+        for img_file in sorted(files):
+            processed += 1
+
             # some images are downloaded, but have invalid file size
             # those < 10KB will be deleted, but the url will be preserved in the Download table
             if os.path.getsize(img_file) < 10240:
@@ -80,7 +87,7 @@ def detect(directory=paintingDB.downloads_dir):
             # if any face is detected, store its bounding box
             # and do face landmark detection
             if len(faces):
-                print("Found {} face(s) in {}".format(len(faces), title))
+                print("({}/{}) Found {} face(s) in {}".format(processed, total, len(faces), title))
                 url = paintingDB.retrieve_download_url(title)
 
                 if url:
@@ -88,16 +95,25 @@ def detect(directory=paintingDB.downloads_dir):
                     painting_id = paintingDB.store_painting_info(url)
 
                     # store painting id, landmarks points and bounding box for each face
+                    # also crop down and save the face part
                     for idx, bbox in enumerate(faces):
-                        paintingDB.store_landmarks(detect_landmarks(img_data, bbox)[1].tolist(),
-                                                   painting_id, break_rect(bbox))
+                        face_id = paintingDB.store_landmarks(
+                            detect_landmarks(img_data, bbox)[1].tolist(),
+                            painting_id, break_rect(bbox))
+
+                        face_width, face_height = bbox.right() - bbox.left(), bbox.bottom() - bbox.top()
+                        cropped = img_data[max(bbox.top() - face_height // 2, 0):
+                                           min(bbox.bottom() + face_height // 2, img_data.shape[0]),
+                                           max(bbox.left() - face_width // 2, 0):
+                                           min(bbox.right() + face_width // 2, img_data.shape[1])]
+                        io.imsave(paintingDB.get_face_filename(face_id), cropped)
 
                     # move the image to paintings folder
                     shutil.move(directory + img_file, paintingDB.get_painting_filename(painting_id))
 
                 # if no url, delete the image
                 else:
-                    print("No record in database: {}".format(img_file))
+                    print("No url record in database: {}".format(img_file))
                     os.remove(img_file)
 
             # if no face, delete the image

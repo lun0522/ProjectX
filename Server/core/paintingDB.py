@@ -32,9 +32,9 @@ mysql> DESCRIBE Landmark;
 +-------------+---------+------+-----+---------+----------------+
 """
 
-downloads_dir, paintings_dir, tmp_dir, predictor_path, model_dir = \
+downloads_dir, paintings_dir, faces_dir, tmp_dir, predictor_path, model_dir = \
     ["/Users/lun/Desktop/ProjectX/" + path for path in
-     ["downloads/", "paintings/", "temp/", "predictor.dat", "style118.h5"]]
+     ["downloads/", "paintings/", "paintings/faces/", "temp/", "predictor.dat", "style118.h5"]]
 
 cnx = mysql.connector.connect(user="root",
                               password="password",
@@ -70,6 +70,10 @@ def get_painting_filename(index):
     return paintings_dir + str(index).zfill(5) + ".jpg"
 
 
+def get_face_filename(index):
+    return faces_dir + str(index).zfill(5) + ".jpg"
+
+
 def store_download_info(title, url):
     cursor.execute(insert_download, (title, url))
 
@@ -95,6 +99,7 @@ def store_painting_info(url):
 
 def store_landmarks(landmarks, painting_id, bounding_box):
     cursor.execute(insert_landmark, (painting_id, json.dumps(bounding_box), json.dumps(landmarks)))
+    return cursor.lastrowid
 
 
 def get_all_landmarks():

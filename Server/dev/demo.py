@@ -5,16 +5,17 @@ from core.detector import detect_face, detect_landmarks, create_rect, break_rect
 import numpy as np
 import dlib
 from dev.testingDB import get_landmarks, dataset_dir
+from core.paintingDB import get_all_landmarks, faces_dir
 from core.comparator import Comparator
 import os
 import glob
 
 
 class GUI(Frame):
-    def __init__(self, master, directory=os.path.join(dataset_dir, "total")):
+    def __init__(self, master):
         Frame.__init__(self, master)
 
-        width, height = 1000, 360
+        width, height = 720, 765
         master.minsize(width, height)
         master.maxsize(width, height)
         self.pack()
@@ -23,22 +24,34 @@ class GUI(Frame):
         self.camera_label.pack()
         self.camera_label.place(x=0, y=0)
 
-        self.face_label = Label()
-        self.face_label.pack()
-        self.face_label.place(x=640, y=0)
+        self.dataset_label = Label()
+        self.dataset_label.pack()
+        self.dataset_label.place(x=0, y=405)
+
+        self.painting_label = Label()
+        self.painting_label.pack()
+        self.painting_label.place(x=360, y=405)
 
         self.video_capture = cv2.VideoCapture(0)
         self.tracker = dlib.correlation_tracker()
         self.bounding_box = None
         self.camera_image = None
 
-        landmarks = get_landmarks("Total")
-        self.emotions = [row[1] for row in landmarks]
-        self.comparator = Comparator(np.array([row[2] for row in landmarks]), 1)
-        self.face_image = None
-        self.faces = []
-        for img_file in sorted(glob.glob(os.path.join(directory, "*.jpg"))):
-            self.faces.append(Image.open(img_file))
+        dataset_landmarks = get_landmarks("Total")
+        self.dataset_emotions = [row[1] for row in dataset_landmarks]
+        self.dataset_comparator = Comparator(np.array([row[2] for row in dataset_landmarks]), 1)
+        self.dataset_face_image = None
+        self.dataset_faces = []
+        for img_file in sorted(glob.glob(os.path.join(dataset_dir, "total/*.jpg"))):
+            self.dataset_faces.append(Image.open(img_file))
+
+        painting_landmarks = get_all_landmarks()
+        self.painting_emotions = [row[1] for row in painting_landmarks]
+        self.painting_comparator = Comparator(np.array([row[2] for row in painting_landmarks]), 1)
+        self.painting_face_image = None
+        self.painting_faces = []
+        for img_file in sorted(glob.glob(os.path.join(faces_dir, "*.jpg"))):
+            self.painting_faces.append(Image.open(img_file))
 
         self.after(0, self.refresh)
 
@@ -65,14 +78,20 @@ class GUI(Frame):
                 for point in landmarks:
                     cv2.circle(frame, (int(point[0]), int(point[1])), 4, (255, 0, 0), -1)
 
-                face = self.faces[self.comparator(normalized)[0]]
+                face = self.dataset_faces[self.dataset_comparator(normalized)[0]]
                 face = face.resize([360, 360])
-                self.face_image = ImageTk.PhotoImage(image=face)
-                self.face_label.configure(image=self.face_image)
-                self.face_label.image = self.face_image
+                self.dataset_face_image = ImageTk.PhotoImage(image=face)
+                self.dataset_label.configure(image=self.dataset_face_image)
+                self.dataset_label.image = self.dataset_face_image
+
+                face = self.painting_faces[self.painting_comparator(normalized)[0]]
+                face = face.resize([360, 360])
+                self.painting_face_image = ImageTk.PhotoImage(image=face)
+                self.painting_label.configure(image=self.painting_face_image)
+                self.painting_label.image = self.painting_face_image
 
             frame = Image.fromarray(frame)
-            frame = frame.resize([640, 360])
+            frame = frame.resize([720, 405])
             self.camera_image = ImageTk.PhotoImage(image=frame)
             self.camera_label.configure(image=self.camera_image)
             self.camera_label.image = self.camera_image
