@@ -1,14 +1,16 @@
-from tkinter import *
-import cv2
-from PIL import Image, ImageTk
-from core.detector import detect_face, detect_landmarks, create_rect, break_rect
-import numpy as np
-import dlib
-from dev.testingDB import get_landmarks, dataset_dir
-from core.paintingDB import get_all_landmarks, faces_dir
-from core.comparator import Comparator
 import os
 import glob
+from tkinter import *
+
+import numpy as np
+import cv2
+import dlib
+from PIL import Image, ImageTk
+
+from dev.modelDB import dataset_dir, emotions, ModelDatabaseHandler
+from core import detector
+from core.paintingDB import get_all_landmarks, faces_dir
+from core.comparator import Comparator
 
 
 class GUI(Frame):
@@ -32,12 +34,17 @@ class GUI(Frame):
         self.painting_label.pack()
         self.painting_label.place(x=360, y=405)
 
+        self.emotion_text = StringVar()
+        self.emotion_label = Label(textvariable=self.emotion_text, font=("Helvetica", 30))
+        self.emotion_label.pack()
+        self.emotion_label.place(x=10, y=10)
+
         self.video_capture = cv2.VideoCapture(0)
         self.tracker = dlib.correlation_tracker()
         self.bounding_box = None
         self.camera_image = None
 
-        dataset_landmarks = get_landmarks("Total")
+        dataset_landmarks = ModelDatabaseHandler().get_landmarks("Total")
         self.dataset_emotions = [row[1] for row in dataset_landmarks]
         self.dataset_comparator = Comparator(np.array([row[2] for row in dataset_landmarks]), 1)
         self.dataset_face_image = None
@@ -46,7 +53,6 @@ class GUI(Frame):
             self.dataset_faces.append(Image.open(img_file))
 
         painting_landmarks = get_all_landmarks()
-        self.painting_emotions = [row[1] for row in painting_landmarks]
         self.painting_comparator = Comparator(np.array([row[2] for row in painting_landmarks]), 1)
         self.painting_face_image = None
         self.painting_faces = []
@@ -70,15 +76,18 @@ class GUI(Frame):
 
             if self.bounding_box:
                 # draw rectangle around face
-                left, top, right, bottom = break_rect(self.bounding_box)
+                left, top, right, bottom = detector.break_rect(self.bounding_box)
                 cv2.rectangle(frame, (left, top), (right, bottom), (255, 255, 0), 2)
 
                 # draw red dots for landmarks
-                landmarks, normalized = detect_landmarks(frame, self.bounding_box)
-                for point in landmarks:
-                    cv2.circle(frame, (int(point[0]), int(point[1])), 4, (255, 0, 0), -1)
+                landmarks = detector.detect_landmarks(frame, self.bounding_box)
+                normalized = detector.normalize_landmarks(landmarks)
+                for x, y in landmarks:
+                    cv2.circle(frame, (int(x), int(y)), 4, (255, 0, 0), -1)
 
-                face = self.dataset_faces[self.dataset_comparator(normalized)[0]]
+                emotion_id = self.dataset_comparator(normalized)[0]
+                self.emotion_text.set(emotions[self.dataset_emotions[emotion_id]])
+                face = self.dataset_faces[emotion_id]
                 face = face.resize([360, 360])
                 self.dataset_face_image = ImageTk.PhotoImage(image=face)
                 self.dataset_label.configure(image=self.dataset_face_image)
@@ -102,7 +111,7 @@ class GUI(Frame):
             pass
 
     def detect(self, frame):
-        faces = detect_face(frame)
+        faces = detector.detect_face(frame)
         if faces:
             area = [bbox.area() for bbox in faces]
             self.bounding_box = faces[np.argmax(area)]
@@ -111,8 +120,8 @@ class GUI(Frame):
     def track(self, frame):
         confidence = self.tracker.update(frame)
         if confidence > 8:
-            left, top, right, bottom = break_rect(self.tracker.get_position())
-            self.bounding_box = create_rect(int(left), int(top), int(right), int(bottom))
+            left, top, right, bottom = detector.break_rect(self.tracker.get_position())
+            self.bounding_box = detector.create_rect(int(left), int(top), int(right), int(bottom))
         else:
             self.bounding_box = None
 

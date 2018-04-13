@@ -1,18 +1,20 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
-from PIL import Image
 from io import BytesIO
-from core.detector import create_rect, detect_landmarks
-import socket
-from zeroconf import ServiceInfo, Zeroconf
-import numpy as np
-from core.paintingDB import model_dir, tmp_dir, get_painting_filename, get_all_landmarks
-import os
-import requests
-import subprocess
-from core.comparator import Comparator
-from transfer.transfer import StyleTransfer
 import json
+import socket
+import os
+import subprocess
+
+import requests
+import numpy as np
+from PIL import Image
+from zeroconf import ServiceInfo, Zeroconf
+
+from core.comparator import Comparator
+from core.detector import create_rect, detect_landmarks
+from core.paintingDB import model_dir, tmp_dir, get_painting_filename, get_all_landmarks
+from transfer.transfer import StyleTransfer
 
 host_name = ""  # if use "localhost", this server will only be accessible for the local machine
 host_port = 8080

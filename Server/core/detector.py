@@ -1,11 +1,13 @@
-import dlib
 import os
 import glob
-from core import paintingDB
-from skimage import io
-import mysql.connector
 import shutil
+
 import numpy as np
+import dlib
+from skimage import io
+from mysql.connector import Error as sqlError
+
+from core import paintingDB
 
 
 # ("landmark name", (start_index, end_index (exclusive)), weight)
@@ -35,8 +37,13 @@ def detect_face(img):
     return [bbox for num, bbox in enumerate(detector(img, 1))]
 
 
+def detect_landmarks(img, bbox):
+    landmarks = [[point.x, point.y] for point in predictor(img, bbox).parts()]
+    return np.array(landmarks, dtype=np.float)
+
+
 def normalize_landmarks(landmarks):
-    landmarks = np.array(landmarks, dtype=np.float64).transpose()
+    landmarks = np.copy(landmarks).transpose()
     for _, (start, end), (left, right) in landmark_map:
         leftmost, rightmost = left - start, right - start
         points = landmarks[:, start: end]
@@ -52,9 +59,14 @@ def normalize_landmarks(landmarks):
     return np.hstack((landmarks[0, :], landmarks[1, :]))
 
 
-def detect_landmarks(img, bbox):
-    landmarks = [[point.x, point.y] for point in predictor(img, bbox).parts()]
-    return landmarks, normalize_landmarks(landmarks)
+def pose_landmarks(landmarks):
+    left_canthus = landmarks[landmark_map[4][2][0]]
+    right_canthus = landmarks[landmark_map[5][2][1]]
+    tilted_horizon = right_canthus - left_canthus
+    angle = -np.arctan2(tilted_horizon[1], tilted_horizon[0])
+    rotation = np.array([[np.cos(angle), -np.sin(angle)],
+                         [np.sin(angle),  np.cos(angle)]])
+    return normalize_landmarks(landmarks @ rotation.transpose())
 
 
 def detect(directory=paintingDB.downloads_dir):
@@ -125,7 +137,7 @@ def detect(directory=paintingDB.downloads_dir):
 
         print("Detection finished.")
 
-    except mysql.connector.Error as err:
+    except sqlError as err:
         print("Error in MySQL: {}".format(err))
 
     # ensure to save all changes and do double check if necessary

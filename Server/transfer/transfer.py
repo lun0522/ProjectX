@@ -4,6 +4,8 @@ Use a trained pastiche net to stylize images.
 """
 
 import os
+import time
+
 import numpy as np
 import tensorflow as tf
 import keras.backend as kb
@@ -11,8 +13,8 @@ from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg16
 import h5py
 import yaml
+
 from transfer.model import pastiche_model
-import time
 
 
 class StyleTransfer(object):

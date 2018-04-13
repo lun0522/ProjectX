@@ -1,5 +1,6 @@
-import mysql.connector
 import json
+
+import mysql.connector
 
 """
 mysql> use paintings

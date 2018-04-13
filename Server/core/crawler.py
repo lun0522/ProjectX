@@ -1,7 +1,9 @@
-import requests
-from bs4 import BeautifulSoup
 from multiprocessing import Manager
 import os
+
+import requests
+from bs4 import BeautifulSoup
+
 from core.detector import detect
 from core import paintingDB
 
