@@ -6,10 +6,11 @@ import numpy as np
 import cv2
 import dlib
 from PIL import Image, ImageTk
+from sklearn.externals import joblib
 
 from dev.modelDB import dataset_dir, emotions, ModelDatabaseHandler
 from core import detector
-from core.paintingDB import get_all_landmarks, faces_dir
+from core.paintingDB import get_all_landmarks, faces_dir, svm_dir
 from core.comparator import Comparator
 
 
@@ -44,16 +45,27 @@ class GUI(Frame):
         self.bounding_box = None
         self.camera_image = None
 
-        dataset_landmarks = ModelDatabaseHandler().get_landmarks("Total")
-        self.dataset_emotions = [row[1] for row in dataset_landmarks]
-        self.dataset_comparator = Comparator(np.array([row[2] for row in dataset_landmarks]), 1)
+        self.svm = joblib.load(svm_dir)
+
+        dataset = ModelDatabaseHandler().get_landmarks("Total")
+        dataset_landmarks = [[] for _ in range(len(emotions))]
+        self.dataset_map = [[] for _ in range(len(emotions))]
+        for lid, eid, points, _ in dataset:
+            self.dataset_map[eid].append(lid - 1)
+            dataset_landmarks[eid].append(points)
+        self.dataset_comparators = [Comparator(points, 1) for points in dataset_landmarks]
         self.dataset_face_image = None
         self.dataset_faces = []
         for img_file in sorted(glob.glob(os.path.join(dataset_dir, "total/*.jpg"))):
             self.dataset_faces.append(Image.open(img_file))
 
-        painting_landmarks = get_all_landmarks()
-        self.painting_comparator = Comparator(np.array([row[2] for row in painting_landmarks]), 1)
+        paintings = get_all_landmarks()
+        painting_landmarks = [[] for _ in range(len(emotions))]
+        self.painting_map = [[] for _ in range(len(emotions))]
+        for lid, _, eid, _, points, _ in paintings:
+            self.painting_map[eid].append(lid - 1)
+            painting_landmarks[eid].append(points)
+        self.painting_comparators = [Comparator(points, 1) for points in painting_landmarks]
         self.painting_face_image = None
         self.painting_faces = []
         for img_file in sorted(glob.glob(os.path.join(faces_dir, "*.jpg"))):
@@ -82,18 +94,24 @@ class GUI(Frame):
                 # draw red dots for landmarks
                 landmarks = detector.detect_landmarks(frame, self.bounding_box)
                 normalized = detector.normalize_landmarks(landmarks)
+                posed = detector.pose_landmarks(landmarks)
                 for x, y in landmarks:
                     cv2.circle(frame, (int(x), int(y)), 4, (255, 0, 0), -1)
 
-                emotion_id = self.dataset_comparator(normalized)[0]
-                self.emotion_text.set(emotions[self.dataset_emotions[emotion_id]])
-                face = self.dataset_faces[emotion_id]
+                emotion_id = self.svm.predict([posed])[0]
+                self.emotion_text.set(emotions[emotion_id])
+
+                face_id = self.dataset_comparators[emotion_id](normalized)[0]
+                face_id = self.dataset_map[emotion_id][face_id]
+                face = self.dataset_faces[face_id]
                 face = face.resize([360, 360])
                 self.dataset_face_image = ImageTk.PhotoImage(image=face)
                 self.dataset_label.configure(image=self.dataset_face_image)
                 self.dataset_label.image = self.dataset_face_image
 
-                face = self.painting_faces[self.painting_comparator(normalized)[0]]
+                face_id = self.painting_comparators[emotion_id](normalized)[0]
+                face_id = self.painting_map[emotion_id][face_id]
+                face = self.painting_faces[face_id]
                 face = face.resize([360, 360])
                 self.painting_face_image = ImageTk.PhotoImage(image=face)
                 self.painting_label.configure(image=self.painting_face_image)

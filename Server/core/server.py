@@ -5,15 +5,18 @@ import json
 import socket
 import os
 import subprocess
+import glob
 
 import requests
 import numpy as np
 from PIL import Image
 from zeroconf import ServiceInfo, Zeroconf
+from sklearn.externals import joblib
 
+from dev.modelDB import emotions
 from core.comparator import Comparator
-from core.detector import create_rect, detect_landmarks
-from core.paintingDB import model_dir, tmp_dir, get_painting_filename, get_all_landmarks
+from core.detector import create_rect, detect_landmarks, normalize_landmarks, pose_landmarks
+from core.paintingDB import style_dir, tmp_dir, get_painting_filename, get_all_landmarks, svm_dir, faces_dir
 from transfer.transfer import StyleTransfer
 
 host_name = ""  # if use "localhost", this server will only be accessible for the local machine
@@ -25,11 +28,18 @@ app_key = "0azk0HxCkcrtNGIKC5BMwxnr"
 cloud_url = "https://us-api.leancloud.cn/1.1/classes/Server/5a40a4eee37d040044aa4733"
 valid_operations = {"Store", "Delete", "Retrieve", "Transfer"}
 
-all_landmarks = get_all_landmarks()
-all_pid = [row[0] for row in all_landmarks]
-all_bbox = [row[1] for row in all_landmarks]
-comparator = Comparator(np.array([row[2] for row in all_landmarks]), 3)
-style_transfer = StyleTransfer(model_dir)
+svm = joblib.load(svm_dir)
+paintings = get_all_landmarks()
+painting_landmarks = [[] for _ in range(len(emotions))]
+painting_map = [[] for _ in range(len(emotions))]
+for lid, pid, eid, _, points, _ in paintings:
+    painting_map[eid].append([lid, pid])
+    painting_landmarks[eid].append(points)
+painting_comparators = [Comparator(points, 3) for points in painting_landmarks]
+style_transfer = StyleTransfer(style_dir)
+painting_faces = []
+for img_file in sorted(glob.glob(os.path.join(faces_dir, "*.jpg"))):
+    painting_faces.append(Image.open(img_file))
 
 
 def print_with_date(content):
@@ -82,7 +92,7 @@ class MyServer(BaseHTTPRequestHandler):
                 photo = Image.open(BytesIO(self.rfile.read(content_length)))
 
                 # currently set a limit to the length of the longer side of the photo
-                limit = 720
+                limit = 500
                 if photo.size[0] > limit or photo.size[1] > limit:
                     ratio = max(photo.size[0], photo.size[1]) / limit
                     photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
@@ -95,19 +105,22 @@ class MyServer(BaseHTTPRequestHandler):
             face_image = Image.open(BytesIO(self.rfile.read(content_length)))
 
             bounding_box = create_rect(0, 0, face_image.size[1], face_image.size[0])
-            landmarks = detect_landmarks(np.array(face_image), bounding_box)[1]
+            landmarks = detect_landmarks(np.array(face_image), bounding_box)
+            normalized = normalize_landmarks(landmarks)
+            posed = pose_landmarks(landmarks)
 
             image_info, image_bytes = [], BytesIO()
-            for idx in comparator(landmarks):
-                pid, bbox = all_pid[idx], all_bbox[idx]
+            emotion_id = svm.predict([posed])[0]
+            for idx in painting_comparators[emotion_id](normalized):
+                face_id, painting_id = painting_map[emotion_id][idx]
+                face = painting_faces[face_id - 1]
                 prev_len = len(image_bytes.getvalue())
-                original = Image.open(get_painting_filename(pid))
+                original = Image.open(get_painting_filename(painting_id))
                 original.save(image_bytes, format="jpeg")
                 mid_len = len(image_bytes.getvalue())
-                cropped = original.crop(bbox)
-                cropped.save(image_bytes, format="jpeg")
+                face.save(image_bytes, format="jpeg")
                 image_info.append({
-                    "Painting-Id": pid,
+                    "Painting-Id": painting_id,
                     "Painting-Length": mid_len - prev_len,
                     "Portrait-Length": len(image_bytes.getvalue()) - mid_len,
                 })

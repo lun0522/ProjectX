@@ -9,16 +9,20 @@ from skimage import io
 from skimage.transform import resize
 from icrawler.builtin import GoogleImageCrawler
 from mysql.connector import Error as sqlError
+from sklearn.svm import SVC
+from sklearn.externals import joblib
 
 from core import detector
 from core.comparator import Comparator
+from core import paintingDB
 from dev.modelDB import dataset_dir, emotions, ModelDatabaseHandler
 
 
 def examine(params):
     try:
-        trainer, weight, processed, total = params
-        match_rate = trainer.verify_model(Comparator.construct_metric(weight), False)
+        trainer, weight, neighbors, processed, total = params
+        match_rate = trainer.verify_model(Comparator.construct_metric(weight),
+                                          neighbors=neighbors, verbose=False)
         processed.value += 1
         print("({}/{}) {} -> {:.2f}%".format(processed.value, total, weight, match_rate * 100.0))
         return weight, match_rate
@@ -28,12 +32,14 @@ def examine(params):
 
 
 class Trainer(object):
-    def __init__(self):
+    def __init__(self, pool_branch="Pool", training_branch="Training"):
         db_handler = ModelDatabaseHandler()
-        pool = db_handler.get_landmarks("Pool")
-        self.emotions_pool = [row[1] for row in pool]
+        pool = db_handler.get_landmarks(pool_branch)
+        self.emotions_pool = np.array([row[1] for row in pool])
         self.landmarks_pool = np.array([row[3] for row in pool])
-        self.training = db_handler.get_landmarks("Training")
+        training = db_handler.get_landmarks(training_branch)
+        self.emotions_training = [row[1] for row in training]
+        self.landmarks_training = np.array([row[3] for row in training])
 
     @staticmethod
     def crawl_image(keyword, capacity, directory):
@@ -97,7 +103,7 @@ class Trainer(object):
                 files = glob.glob(os.path.join(os.path.join(directory, emotion), "*.jpg"))
                 total, processed = len(files), 0
                 branch = [[name, int(count)] for name, count in
-                          zip(["Pool", "Training"], [total * i for i in [0.75, 0.25]])]
+                          zip(["Training", "Test"], [total * i for i in [0.8, 0.2]])]
 
                 def get_database_branch():
                     branch[-1][1] -= 1
@@ -117,7 +123,7 @@ class Trainer(object):
                     copied += 1
                     db_handler.store_landmarks(get_database_branch(), emotion_id, normalized, posed)
                     db_handler.store_landmarks("Total", emotion_id, normalized, posed)
-                    shutil.copy(img_file, os.path.join(total_dir, str(copied).zfill(5) + ".jpg"))
+                    # shutil.copy(img_file, os.path.join(total_dir, str(copied).zfill(5) + ".jpg"))
 
                     print("Processed ({}/{})".format(processed, total))
 
@@ -127,14 +133,15 @@ class Trainer(object):
         finally:
             db_handler.commit_change()
 
-    def verify_model(self, metric, verbose=True):
-        neighbors = NearestNeighbors(metric=metric, n_neighbors=1).fit(self.landmarks_pool)
-        total, processed, match = len(self.training), 0, 0
+    def verify_model(self, metric, neighbors=1, verbose=True):
+        neighbors = NearestNeighbors(metric=metric, n_neighbors=neighbors).fit(self.landmarks_pool)
+        total, processed, match = len(self.emotions_training), 0, 0
 
-        for _, emotion_id, _, points_posed in self.training:
+        for emotion_id, points_posed in zip(self.emotions_training, self.landmarks_training):
             processed += 1
-            match_id = neighbors.kneighbors([points_posed], return_distance=False)[0][0]
-            if emotion_id == self.emotions_pool[match_id]:
+            match_id = neighbors.kneighbors([points_posed], return_distance=False)[0]
+            match_emotions = self.emotions_pool[match_id].tolist()
+            if emotion_id == max(match_emotions, key=match_emotions.count):
                 match += 1
                 if verbose:
                     print("Processed ({}/{})".format(processed, total) + "Hit")
@@ -146,7 +153,7 @@ class Trainer(object):
             print("Accuracy: {:.2f}%".format(match / total * 100.0))
         return match / total
 
-    def exhaustive_search(self, batch_size=20):
+    def exhaustive_search(self, neighbors=1, batch_size=20):
         pool = Manager().Pool()
         counter = Manager().Value("d", 0)
         best_weight, highest_match = None, 0.0
@@ -156,7 +163,7 @@ class Trainer(object):
             try:
                 counter.value = 0
                 weights = np.random.rand(batch_size, 6)
-                results = pool.map(examine, [(self, weights[i], counter, batch_size)
+                results = pool.map(examine, [(self, weights[i], neighbors, counter, batch_size)
                                              for i in range(batch_size)])
                 index = np.argmax(np.array([row[1] for row in results]))
                 if results[index][1] > highest_match:
@@ -168,5 +175,29 @@ class Trainer(object):
                 searching = False
 
 
+def train_svm(directory=paintingDB.svm_dir):
+    db_handler = ModelDatabaseHandler()
+    training_pool = db_handler.get_landmarks("Training")
+    test_pool = db_handler.get_landmarks("Test")
+
+    def generate_train_data():
+        np.random.shuffle(training_pool)
+        label = np.array([row[1] for row in training_pool])
+        data = np.array([row[3] for row in training_pool])
+        return data, label
+
+    test_label = np.array([row[1] for row in test_pool])
+    test_data = np.array([row[3] for row in test_pool])
+
+    svm = SVC(kernel='linear', probability=True, tol=1e-3)
+    training_data, training_label = generate_train_data()
+    svm.fit(training_data, training_label)
+
+    accuracy = svm.score(test_data, test_label)
+    print("Accuracy: {}%".format(accuracy * 100))
+
+    joblib.dump(svm, directory)
+
+
 if __name__ == "__main__":
-    Trainer().exhaustive_search()
+    Trainer.build_database()

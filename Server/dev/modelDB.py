@@ -49,6 +49,7 @@ class ModelDatabaseHandler(object):
     def store_landmarks(self, branch, emotion_id, points, points_posed):
         self.cursor.execute(insert_landmark.format(branch),
                             (emotion_id, json.dumps(points), json.dumps(points_posed)))
+        return self.cursor.lastrowid
 
     def commit_change(self):
         self.cnx.commit()

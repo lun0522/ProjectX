@@ -23,19 +23,21 @@ mysql> DESCRIBE Painting;
 +-------+---------------+------+-----+---------+----------------+
 
 mysql> DESCRIBE Landmark;
-+-------------+---------+------+-----+---------+----------------+
-| Field       | Type    | Null | Key | Default | Extra          |
-+-------------+---------+------+-----+---------+----------------+
-| id          | int(11) | NO   | PRI | NULL    | auto_increment |
-| painting_id | int(11) | NO   | MUL | NULL    |                |
-| bbox        | json    | NO   |     | NULL    |                |
-| points      | json    | NO   |     | NULL    |                |
-+-------------+---------+------+-----+---------+----------------+
++--------------+---------+------+-----+---------+----------------+
+| Field        | Type    | Null | Key | Default | Extra          |
++--------------+---------+------+-----+---------+----------------+
+| id           | int(11) | NO   | PRI | NULL    | auto_increment |
+| painting_id  | int(11) | NO   | MUL | NULL    |                |
+| bbox         | json    | NO   |     | NULL    |                |
+| points       | json    | NO   |     | NULL    |                |
+| points_posed | json    | NO   |     | NULL    |                |
++--------------+---------+------+-----+---------+----------------+
 """
 
-downloads_dir, paintings_dir, faces_dir, tmp_dir, predictor_path, model_dir = \
+downloads_dir, paintings_dir, faces_dir, tmp_dir, predictor_path, style_dir, svm_dir = \
     ["/Users/lun/Desktop/ProjectX/" + path for path in
-     ["downloads/", "paintings/", "paintings/faces/", "temp/", "predictor.dat", "style118.h5"]]
+     ["downloads/", "paintings/", "faces/", "temp/",
+      "models/predictor.dat", "models/style150.h5", "models/svm.pkl"]]
 
 cnx = mysql.connector.connect(user="root",
                               password="password",
@@ -60,10 +62,14 @@ insert_painting = " ".join(("INSERT INTO Painting",
                             "VALUES (%s)"))
 
 insert_landmark = " ".join(("INSERT INTO Landmark",
-                            "(painting_id, bbox, points)",
-                            "VALUES (%s, %s, %s)"))
+                            "(painting_id, bbox, points, points_posed)",
+                            "VALUES (%s, %s, %s, %s)"))
 
-query_landmarks = " ".join(("SELECT painting_id, bbox, points",
+update_landmark = " ".join(("UPDATE Landmark",
+                            "SET emotion_id=%s",
+                            "WHERE id=%s"))
+
+query_landmarks = " ".join(("SELECT id, painting_id, emotion_id, bbox, points, points_posed",
                             "FROM Landmark"))
 
 
@@ -98,14 +104,20 @@ def store_painting_info(url):
     return cursor.lastrowid
 
 
-def store_landmarks(landmarks, painting_id, bounding_box):
-    cursor.execute(insert_landmark, (painting_id, json.dumps(bounding_box), json.dumps(landmarks)))
+def store_landmarks(landmarks, landmarks_posed, painting_id, bounding_box):
+    cursor.execute(insert_landmark, (painting_id, json.dumps(bounding_box),
+                                     json.dumps(landmarks), json.dumps(landmarks_posed)))
     return cursor.lastrowid
+
+
+def update_emotion(landmark_id, emotion_id):
+    cursor.execute(update_landmark, (emotion_id, landmark_id))
 
 
 def get_all_landmarks():
     cursor.execute(query_landmarks)
-    return [(pid, json.loads(bbox), json.loads(points)) for pid, bbox, points in cursor]
+    return [(lid, pid, eid, json.loads(bbox), json.loads(points), json.loads(points_posed))
+            for lid, pid, eid, bbox, points, points_posed in cursor]
 
 
 def commit_change():
