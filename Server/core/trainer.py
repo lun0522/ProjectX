@@ -14,8 +14,8 @@ from sklearn.externals import joblib
 
 from core import detector
 from core.comparator import Comparator
-from core import paintingDB
-from dev.modelDB import dataset_dir, emotions, ModelDatabaseHandler
+from database import paintingDB
+from database.modelDB import dataset_dir, emotions, ModelDatabaseHandler
 
 
 def examine(params):

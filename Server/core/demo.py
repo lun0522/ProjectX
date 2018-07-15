@@ -8,9 +8,9 @@ import dlib
 from PIL import Image, ImageTk
 from sklearn.externals import joblib
 
-from dev.modelDB import dataset_dir, emotions, ModelDatabaseHandler
+from database.modelDB import dataset_dir, emotions, ModelDatabaseHandler
 from core import detector
-from core.paintingDB import get_all_landmarks, faces_dir, svm_dir
+from database.paintingDB import get_all_landmarks, faces_dir, svm_dir
 from core.comparator import Comparator
 
 

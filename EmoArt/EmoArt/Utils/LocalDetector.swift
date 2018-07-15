@@ -40,9 +40,14 @@ class LocalDetector {
                                     resultHandler: @escaping (DetectionResult?, EMAError?) -> Void) {
         self.resultHandler = resultHandler
         let currentTime = Date().timeIntervalSince1970
-        let doTracking = tracking && (currentTime - timestamp < LocalDetector.kDetectionTimeIntervalThreshold)
+        let elapsedTime = currentTime - timestamp
         timestamp = currentTime
-        if doTracking {
+        guard elapsedTime < LocalDetector.kDetectionTimeIntervalThreshold else {
+            tracking = false
+            detectFace(inImage: image)
+            return
+        }
+        if tracking {
             trackFace(inImage: image)
         } else {
             detectFace(inImage: image)

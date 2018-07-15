@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from core.detector import detect
-from core import paintingDB
+from database import paintingDB
 
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "AppleWebKit/537.1 (KHTML, like Gecko) "

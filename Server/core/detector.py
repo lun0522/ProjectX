@@ -7,8 +7,7 @@ import dlib
 from skimage import io
 from mysql.connector import Error as sqlError
 
-from core import paintingDB
-
+from database import paintingDB
 
 # ("landmark name", (start_index, end_index (exclusive)), weight)
 landmark_map = [

@@ -1,7 +1,9 @@
 import json
 import os
 
-import mysql.connector
+from .baseDB import DatabaseHandler
+
+__all__ = ["ModelDatabaseHandler"]
 
 """
 mysql> use model
@@ -28,18 +30,9 @@ insert_landmark = " ".join(("INSERT INTO {}",
                             "VALUES (%s, %s, %s)"))
 
 
-class ModelDatabaseHandler(object):
+class ModelDatabaseHandler(DatabaseHandler):
     def __init__(self):
-        self.cnx = mysql.connector.connect(user="root",
-                                           password="password",
-                                           host="localhost",
-                                           database="model")
-        self.cursor = self.cnx.cursor(buffered=True)
-
-    def __del__(self):
-        self.cursor.close()
-        self.cnx.close()
-        print("Model database cleaned up")
+        super().__init__("model")
 
     def get_landmarks(self, branch):
         self.cursor.execute(query_landmarks.format(branch))
@@ -50,7 +43,3 @@ class ModelDatabaseHandler(object):
         self.cursor.execute(insert_landmark.format(branch),
                             (emotion_id, json.dumps(points), json.dumps(points_posed)))
         return self.cursor.lastrowid
-
-    def commit_change(self):
-        self.cnx.commit()
-        print("Model database changes committed")

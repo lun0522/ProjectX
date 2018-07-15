@@ -8,7 +8,7 @@
 
 import UIKit
 
-class CaptureViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, VideoCaptureDelegate {
+class CaptureViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, VideoCaptureDelegate {
     
     static let kDotsRadius: CGFloat = 6.0
     
