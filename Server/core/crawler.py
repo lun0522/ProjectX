@@ -4,8 +4,8 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
-from core.detector import detect
-from database import paintingDB
+from .detector import detect
+from database import PaintingDatabaseHandler, downloads_dir
 
 headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                          "AppleWebKit/537.1 (KHTML, like Gecko) "
@@ -35,7 +35,7 @@ def fetch_image(params):
         return None, None
 
 
-def crawl(max_storage, directory=paintingDB.downloads_dir, do_detection=True):
+def crawl(max_storage, directory=downloads_dir, do_detection=True):
     # specify directory to store paintings
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -45,6 +45,9 @@ def crawl(max_storage, directory=paintingDB.downloads_dir, do_detection=True):
     max_page = max_storage // 20
     grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid/page/{}".format(max_page), timeout=1000)
     all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
+
+    # database handler
+    db_handler = PaintingDatabaseHandler()
 
     try:
         # download paintings
@@ -67,25 +70,24 @@ def crawl(max_storage, directory=paintingDB.downloads_dir, do_detection=True):
                 title = title[:251]
 
             # only download those haven't been seen before
-            if paintingDB.did_not_download(title):
+            if db_handler.did_not_download(title):
                 will_fetch.append((url, title, count))
             else:
                 print("Already exists: {}".format(title))
 
         for title, url in pool.map(fetch_image, will_fetch):
             if title and url:
-                paintingDB.store_download_info(title, url)
+                db_handler.store_download_info(title, url)
         print("Download finished.")
 
     except Exception as e:
         print("Error in download: {}".format(e))
 
     finally:
-        paintingDB.commit_change()
+        db_handler.commit()
+        db_handler.close()
         if do_detection:
             detect(directory)
-        else:
-            paintingDB.cleanup()
 
 
 if __name__ == "__main__":

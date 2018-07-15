@@ -13,11 +13,10 @@ from PIL import Image
 from zeroconf import ServiceInfo, Zeroconf
 from sklearn.externals import joblib
 
-from database.modelDB import emotions
-from core.comparator import Comparator
-from core.detector import create_rect, detect_landmarks, normalize_landmarks, pose_landmarks
-from database.paintingDB import style_dir, tmp_dir, get_painting_filename, get_all_landmarks, svm_dir, faces_dir
-from transfer.transfer import StyleTransfer
+from .comparator import Comparator
+from .detector import create_rect, detect_landmarks, normalize_landmarks, pose_landmarks
+from database import emotions, style_path, svm_path, faces_dir, temp_dir, PaintingDatabaseHandler
+from transfer import StyleTransfer
 
 host_name = ""  # if use "localhost", this server will only be accessible for the local machine
 host_port = 8080

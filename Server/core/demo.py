@@ -88,7 +88,7 @@ class GUI(Frame):
 
             if self.bounding_box:
                 # draw rectangle around face
-                left, top, right, bottom = detector.break_rect(self.bounding_box)
+                left, top, right, bottom = detector.rect_to_list(self.bounding_box)
                 cv2.rectangle(frame, (left, top), (right, bottom), (255, 255, 0), 2)
 
                 # draw red dots for landmarks
@@ -138,7 +138,7 @@ class GUI(Frame):
     def track(self, frame):
         confidence = self.tracker.update(frame)
         if confidence > 8:
-            left, top, right, bottom = detector.break_rect(self.tracker.get_position())
+            left, top, right, bottom = detector.rect_to_list(self.tracker.get_position())
             self.bounding_box = detector.create_rect(int(left), int(top), int(right), int(bottom))
         else:
             self.bounding_box = None

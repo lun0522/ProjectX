@@ -7,7 +7,8 @@ import dlib
 from skimage import io
 from mysql.connector import Error as sqlError
 
-from database import paintingDB
+from database import PaintingDatabaseHandler, \
+    predictor_path, downloads_dir, paintings_dir, faces_dir
 
 # ("landmark name", (start_index, end_index (exclusive)), weight)
 landmark_map = [
@@ -20,8 +21,6 @@ landmark_map = [
     ("outerLip",     (48, 60), (48, 54)),
     ("innerLip",     (60, 68), (60, 64)),
 ]
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor(paintingDB.predictor_path)
 
 # http://openface-api.readthedocs.io/en/latest/_modules/openface/align_dlib.html
 face_raw_model = np.float32([
@@ -66,12 +65,15 @@ transform_base = np.array([36, 45, 57])  # outer eyes and bottom lips
 target_points = model_normed[transform_base].transpose() * 100
 target_matrix = np.vstack([target_points, np.ones([1, 3])])
 
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(predictor_path)
+
 
 def create_rect(xlo, ylo, xhi, yhi):
     return dlib.rectangle(xlo, ylo, xhi, yhi)
 
 
-def break_rect(rect):
+def rect_to_list(rect):
     return [rect.left(), rect.top(), rect.right(), rect.bottom()]
 
 
@@ -111,12 +113,12 @@ def pose_landmarks(landmarks):
     return normalize_landmarks(posed.transpose())
 
 
-def detect(directory=paintingDB.downloads_dir):
-    if not os.path.exists(paintingDB.paintings_dir):
-        os.makedirs(paintingDB.paintings_dir)
-    if not os.path.exists(paintingDB.faces_dir):
-        os.makedirs(paintingDB.faces_dir)
+def detect(directory=downloads_dir):
+    [os.mkdir(d) for d in [paintings_dir, faces_dir] if not os.path.exists(d)]
     os.chdir(directory)
+
+    # database handler
+    db_handler = PaintingDatabaseHandler()
 
     try:
         files = glob.glob("*.jpg")
@@ -135,48 +137,41 @@ def detect(directory=paintingDB.downloads_dir):
             title = img_file[:-4]
             img_data = io.imread(img_file)
 
-            # do face detection
+            # if no url, delete the image
+            url = db_handler.retrieve_download_url(title)
+            if not url:
+                print("No url record in database: {}".format(img_file))
+                os.remove(img_file)
+                continue
+            db_handler.remove_redundant_info(title)
+
+            # if any face is detected, store its bounding box and do face landmark detection
+            # otherwise delete the image
             faces = detect_face(img_data)
-
-            # if any face is detected, store its bounding box
-            # and do face landmark detection
-            if len(faces):
-                print("({}/{}) Found {} face(s) in {}".format(processed, total, len(faces), title))
-                url = paintingDB.retrieve_download_url(title)
-
-                if url:
-                    # i.e. row number in database
-                    painting_id = paintingDB.store_painting_info(url)
-
-                    # store painting id, landmarks points and bounding box for each face
-                    # also crop down and save the face part
-                    for idx, bbox in enumerate(faces):
-                        landmarks = detect_landmarks(img_data, bbox)
-                        normalized = normalize_landmarks(landmarks).tolist()
-                        posed = pose_landmarks(landmarks).tolist()
-                        face_id = paintingDB.store_landmarks(normalized, posed, painting_id, break_rect(bbox))
-
-                        face_width, face_height = bbox.right() - bbox.left(), bbox.bottom() - bbox.top()
-                        cropped = img_data[max(bbox.top() - face_height // 2, 0):
-                                           min(bbox.bottom() + face_height // 2, img_data.shape[0]),
-                                           max(bbox.left() - face_width // 2, 0):
-                                           min(bbox.right() + face_width // 2, img_data.shape[1])]
-                        io.imsave(paintingDB.get_face_filename(face_id), cropped)
-
-                    # move the image to paintings folder
-                    shutil.move(directory + img_file, paintingDB.get_painting_filename(painting_id))
-
-                # if no url, delete the image
-                else:
-                    print("No url record in database: {}".format(img_file))
-                    os.remove(img_file)
-
-            # if no face, delete the image
-            else:
+            if not faces:
                 print("No face found in {}".format(title))
                 os.remove(img_file)
+                continue
+            print("({}/{}) Found {} face(s) in {}".format(processed, total, len(faces), title))
 
-            paintingDB.remove_redundant_info(title)
+            # store painting id, landmarks points and bounding box for each face
+            # also crop down and save the face part
+            painting_id = db_handler.store_painting_info(url)
+            for idx, bbox in enumerate(faces):
+                landmarks = detect_landmarks(img_data, bbox)
+                normalized = normalize_landmarks(landmarks).tolist()
+                posed = pose_landmarks(landmarks).tolist()
+                face_id = db_handler.store_landmarks(normalized, posed, painting_id, rect_to_list(bbox))
+
+                face_width, face_height = bbox.right() - bbox.left(), bbox.bottom() - bbox.top()
+                cropped = img_data[max(bbox.top() - face_height // 2, 0):
+                                   min(bbox.bottom() + face_height // 2, img_data.shape[0]),
+                                   max(bbox.left() - face_width // 2, 0):
+                                   min(bbox.right() + face_width // 2, img_data.shape[1])]
+                io.imsave(db_handler.get_face_filename(face_id), cropped)
+
+            # move the image to paintings folder
+            shutil.move(directory + img_file, db_handler.get_painting_filename(painting_id))
 
         print("Detection finished.")
 
@@ -185,8 +180,8 @@ def detect(directory=paintingDB.downloads_dir):
 
     # ensure to save all changes and do double check if necessary
     finally:
-        paintingDB.commit_change()
-        paintingDB.cleanup()
+        db_handler.commit()
+        db_handler.close()
 
 
 if __name__ == "__main__":
