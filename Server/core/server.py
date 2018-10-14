@@ -14,8 +14,9 @@ from zeroconf import ServiceInfo, Zeroconf
 from sklearn.externals import joblib
 
 from .comparator import Comparator
-from .detector import create_rect, detect_landmarks, normalize_landmarks, pose_landmarks
-from database import emotions, style_path, svm_path, faces_dir, temp_dir, PaintingDatabaseHandler
+from .detector import LandmarksDetector
+from database import PaintingDatabaseHandler,\
+    emotions, style_path, svm_path, faces_dir, temp_dir
 from transfer import StyleTransfer
 
 host_name = ""  # if use "localhost", this server will only be accessible for the local machine
@@ -27,22 +28,24 @@ app_key = "0azk0HxCkcrtNGIKC5BMwxnr"
 cloud_url = "https://us-api.leancloud.cn/1.1/classes/Server/5a40a4eee37d040044aa4733"
 valid_operations = {"Store", "Delete", "Retrieve", "Transfer"}
 
-svm = joblib.load(svm_dir)
-paintings = get_all_landmarks()
+db_handler = PaintingDatabaseHandler()
+detector = LandmarksDetector()
+svm = joblib.load(svm_path)
+paintings = db_handler.get_all_landmarks()
 painting_landmarks = [[] for _ in range(len(emotions))]
 painting_map = [[] for _ in range(len(emotions))]
 for lid, pid, eid, _, points, _ in paintings:
     painting_map[eid].append([lid, pid])
     painting_landmarks[eid].append(points)
 painting_comparators = [Comparator(points, 3) for points in painting_landmarks]
-style_transfer = StyleTransfer(style_dir)
+style_transfer = StyleTransfer(style_path)
 painting_faces = []
 for img_file in sorted(glob.glob(os.path.join(faces_dir, "*.jpg"))):
     painting_faces.append(Image.open(img_file))
 
 
 def print_with_date(content):
-    print("{} {}".format(time.asctime(), content))
+    print(f"{time.asctime()} {content}")
 
 
 def get_ip_address():
@@ -57,7 +60,7 @@ def publish_address(address):
                "Content-Type": "application/json"}
     response = requests.put(cloud_url, headers=headers, json={"address": address})
     if response.status_code != 200:
-        print_with_date("Failed in publishing server address: {}".format(response.reason))
+        print_with_date(f"Failed in publishing server address: {response.reason}")
 
 
 class MyServer(BaseHTTPRequestHandler):
@@ -96,17 +99,16 @@ class MyServer(BaseHTTPRequestHandler):
                     ratio = max(photo.size[0], photo.size[1]) / limit
                     photo = photo.resize((int(photo.size[0] / ratio), int(photo.size[1] / ratio)), Image.ANTIALIAS)
 
-                photo.save("{}{}.jpg".format(tmp_dir, self.headers["Photo-Timestamp"]))
+                photo.save(f"{temp_dir}{self.headers['Photo-Timestamp']}.jpg")
                 self._set_headers(200)
 
         elif self.headers["Operation"] == "Retrieve":
             content_length = int(self.headers["Content-Length"])
             face_image = Image.open(BytesIO(self.rfile.read(content_length)))
 
-            bounding_box = create_rect(0, 0, face_image.size[1], face_image.size[0])
-            landmarks = detect_landmarks(np.array(face_image), bounding_box)
-            normalized = normalize_landmarks(landmarks)
-            posed = pose_landmarks(landmarks)
+            landmarks = detector(np.array(face_image), 0, 0, face_image.size[1], face_image.size[0])
+            normalized = detector.normalize_landmarks(landmarks)
+            posed = detector.pose_landmarks(landmarks)
 
             image_info, image_bytes = [], BytesIO()
             emotion_id = svm.predict([posed])[0]
@@ -114,7 +116,7 @@ class MyServer(BaseHTTPRequestHandler):
                 face_id, painting_id = painting_map[emotion_id][idx]
                 face = painting_faces[face_id - 1]
                 prev_len = len(image_bytes.getvalue())
-                original = Image.open(get_painting_filename(painting_id))
+                original = Image.open(db_handler.get_painting_filename(painting_id))
                 original.save(image_bytes, format="jpeg")
                 mid_len = len(image_bytes.getvalue())
                 face.save(image_bytes, format="jpeg")
@@ -128,14 +130,14 @@ class MyServer(BaseHTTPRequestHandler):
             self.wfile.write(image_bytes.getvalue())
 
         elif self.headers["Operation"] == "Transfer":
-            os.chdir(tmp_dir)
-            photo_path = "{}.jpg".format(self.headers["Photo-Timestamp"])
+            os.chdir(temp_dir)
+            photo_path = f"{self.headers['Photo-Timestamp']}.jpg"
             if os.path.isfile(photo_path):
                 style_id = int(self.headers["Style-Id"])
-                print_with_date("Start transfer style {}".format(style_id))
+                print_with_date(f"Start transfer style {style_id}")
 
                 # style_id should subtract 1 before used as index, since the database starts indexing from 1
-                stylized = Image.fromarray(style_transfer(photo_path, tmp_dir, style_id - 1))
+                stylized = Image.fromarray(style_transfer(photo_path, temp_dir, style_id - 1))
                 image_bytes = BytesIO()
                 stylized.save(image_bytes, format="jpeg")
 
@@ -147,7 +149,7 @@ class MyServer(BaseHTTPRequestHandler):
             self._set_headers(404)
 
         print_with_date("Response sent")
-        print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
+        print_with_date(f"Elapsed time {time.time() - start_time:.3f}s")
 
     def do_DELETE(self):
         start_time = time.time()
@@ -162,22 +164,22 @@ class MyServer(BaseHTTPRequestHandler):
             self._set_headers(400)
 
         else:
-            file_path = "{}{}.jpg".format(tmp_dir, self.headers["Photo-Timestamp"])
+            file_path = f"{temp_dir}{self.headers['Photo-Timestamp']}.jpg"
             if os.path.isfile(file_path):
                 os.remove(file_path)
-                print_with_date("{} removed".format(file_path))
+                print_with_date(f"{file_path} removed")
             else:
-                print_with_date("{} not exists".format(file_path))
+                print_with_date(f"{file_path} not exists")
             self._set_headers(200)
 
         print_with_date("Response sent")
-        print_with_date("Elapsed time {:.3f}s".format(time.time() - start_time))
+        print_with_date(f"Elapsed time {time.time() - start_time:.3f}s")
 
 
 if __name__ == "__main__":
     server = HTTPServer((host_name, host_port), MyServer)
     ip = get_ip_address()
-    server_address = "http://{}:{}".format(ip, host_port)
+    server_address = f"http://{ip}:{host_port}"
     publish_address(server_address)
     print_with_date("Server started - " + server_address)
 
@@ -187,7 +189,7 @@ if __name__ == "__main__":
                        socket.inet_aton(ip), 0, properties=txtRecord)
     zeroconf = Zeroconf()
     zeroconf.register_service(info)
-    print_with_date("Multi-cast service registered - {}".format(txtRecord))
+    print_with_date(f"Multi-cast service registered - {txtRecord}")
 
     try:
         server.serve_forever()
@@ -197,9 +199,9 @@ if __name__ == "__main__":
     server.server_close()
     print_with_date("Server stopped - " + server_address)
 
-    subprocess.call(["cd {}; rm *".format(tmp_dir)], shell=True)
+    subprocess.call([f"cd {temp_dir}; rm *"], shell=True)
     print_with_date("Temp folder cleared")
 
     zeroconf.unregister_service(info)
     zeroconf.close()
-    print_with_date("Multi-cast service unregistered - {}".format(txtRecord))
+    print_with_date(f"Multi-cast service unregistered - {txtRecord}")

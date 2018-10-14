@@ -1,5 +1,5 @@
-from sklearn.neighbors import NearestNeighbors
 import numpy as np
+from sklearn.neighbors import NearestNeighbors
 
 
 class Comparator(object):

@@ -12,9 +12,9 @@ class DatabaseHandler(object):
 
     def commit(self):
         self.cnx.commit()
-        print("Database '{}' committed".format(self.database))
+        print(f"Database '{self.database}' committed")
 
     def close(self):
         self.cursor.close()
         self.cnx.close()
-        print("Database '{}' closed".format(self.database))
+        print(f"Database '{self.database}' closed")

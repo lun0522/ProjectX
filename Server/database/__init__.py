@@ -1,15 +1,14 @@
-import os.path
+import os
 
 from .paintingDB import PaintingDatabaseHandler
 from .modelDB import ModelDatabaseHandler
 
 __all__ = ["PaintingDatabaseHandler", "ModelDatabaseHandler",
-           "downloads_dir", "paintings_dir", "faces_dir", "temp_dir",
+           "paintings_dir", "faces_dir", "temp_dir",
            "models_dir", "predictor_path", "style_path",
            "svm_path", "dataset_dir", "emotions", "emotions_dir"]
 
 resource_dir   = "/Users/lun/Desktop/ProjectX"
-downloads_dir  = os.path.join(resource_dir, "downloads")
 paintings_dir  = os.path.join(resource_dir, "paintings")
 faces_dir      = os.path.join(resource_dir, "faces")
 temp_dir       = os.path.join(resource_dir, "temp")

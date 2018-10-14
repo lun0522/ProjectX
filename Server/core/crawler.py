@@ -4,16 +4,16 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
-from .detector import detect
-from database import PaintingDatabaseHandler, downloads_dir
+from .detector import FaceDetector, LandmarksDetector
+from database import PaintingDatabaseHandler
 
-headers = {'User-Agent': "Mozilla/5.0 (Windows NT 6.1; WOW64) "
-                         "AppleWebKit/537.1 (KHTML, like Gecko) "
-                         "Chrome/22.0.1207.1 Safari/537.1"}
+_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) "
+                          "AppleWebKit/537.1 (KHTML, like Gecko) "
+                          "Chrome/22.0.1207.1 Safari/537.1"}
 
 
 def parse_url(url, timeout=10):
-    return BeautifulSoup(requests.get(url, headers=headers, timeout=timeout).text, "lxml")
+    return BeautifulSoup(requests.get(url, headers=_headers, timeout=timeout).text, "lxml")
 
 
 def fetch_image(params):
@@ -21,29 +21,24 @@ def fetch_image(params):
     try:
         # download the image
         img_url = parse_url(url).find("div", class_="artwork").find("img")["src"]
-        img_data = requests.get(img_url, headers=headers, timeout=10)
+        img_data = requests.get(img_url, headers=_headers, timeout=10)
 
         # store the image
         with open(title + ".jpg", "wb") as f:
             f.write(img_data.content)
             count.value += 1
-            print("No.{} {}".format(count.value, title))
+            print(f"No.{count.value} {title}")
             return title, url[:url.rfind("/view_as")]
 
     except requests.exceptions.Timeout:
-        print("Timeout when download: {}".format(title))
+        print(f"Timeout when download: {title}")
         return None, None
 
 
-def crawl(max_storage, directory=downloads_dir, do_detection=True):
-    # specify directory to store paintings
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    os.chdir(directory)
-
+def crawl(max_storage):
     # view paintings as grids
     max_page = max_storage // 20
-    grids_soup = parse_url("https://artuk.org/discover/artworks/view_as/grid/page/{}".format(max_page), timeout=1000)
+    grids_soup = parse_url(f"https://artuk.org/discover/artworks/view_as/grid/page/{max_page}", timeout=1000)
     all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
 
     # database handler
@@ -73,22 +68,19 @@ def crawl(max_storage, directory=downloads_dir, do_detection=True):
             if db_handler.did_not_download(title):
                 will_fetch.append((url, title, count))
             else:
-                print("Already exists: {}".format(title))
+                print(f"Already exists: {title}")
 
         for title, url in pool.map(fetch_image, will_fetch):
             if title and url:
-                db_handler.store_download_info(title, url)
+                db_handler.store_painting_info(url)
         print("Download finished.")
 
     except Exception as e:
-        print("Error in download: {}".format(e))
+        print(f"Error in download: {e}")
 
     finally:
         db_handler.commit()
         db_handler.close()
-        if do_detection:
-            detect(directory)
-
 
 if __name__ == "__main__":
     crawl(4000)
