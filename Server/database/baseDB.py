@@ -2,6 +2,7 @@ import mysql.connector
 
 
 class DatabaseHandler(object):
+
     def __init__(self, database):
         self.database = database
         self.cnx = mysql.connector.connect(user="root",

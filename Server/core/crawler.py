@@ -1,11 +1,11 @@
-from multiprocessing import Manager
+from multiprocessing import cpu_count, Manager
 import os
 
-import requests
 from bs4 import BeautifulSoup
+import requests
 
-from .detector import FaceDetector, LandmarksDetector
-from database import PaintingDatabaseHandler
+from database import PaintingDatabaseHandler, temp_dir
+from pool import ProcessPool, ThreadPool
 
 _headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                           "AppleWebKit/537.1 (KHTML, like Gecko) "
@@ -16,71 +16,80 @@ def parse_url(url, timeout=10):
     return BeautifulSoup(requests.get(url, headers=_headers, timeout=timeout).text, "lxml")
 
 
-def fetch_image(params):
-    url, title, count = params
-    try:
-        # download the image
-        img_url = parse_url(url).find("div", class_="artwork").find("img")["src"]
-        img_data = requests.get(img_url, headers=_headers, timeout=10)
+def parse(bound, shared):
+    data_lock, print_lock = shared["data_lock"], shared["print_lock"]
+    lis, urls, db_handler = shared["lis"], shared["urls"], shared["db_handler"]
+    begin, end = bound
 
-        # store the image
-        with open(title + ".jpg", "wb") as f:
-            f.write(img_data.content)
-            count.value += 1
-            print(f"No.{count.value} {title}")
-            return title, url[:url.rfind("/view_as")]
+    res = []
+    for li in lis[begin: end]:
+        url = li.find("a")["href"]
+        url = url[:url.rfind("/view_as")]
+        index = url[url.rfind("-") + 1:]
+        if db_handler is None or not db_handler.did_download(index):
+            res.append(url)
+        else:
+            with print_lock:
+                print(f"Already exists: {url}")
+    with data_lock:
+        urls += res
+
+
+def fetch(url, shared):
+    print_lock = shared["print_lock"]
+    db_handler, target_dir = shared["db_handler"], shared["target_dir"]
+    title = url[url.rfind("/") + 1:]
+    index = title[title.rfind("-") + 1:]
+
+    try:
+        url = parse_url(url).find("div", class_="artwork").find("img")["src"]
+        data = requests.get(url, headers=_headers, timeout=10)
+        with open(os.path.join(target_dir, index + ".jpg"), "wb") as f:
+            f.write(data.content)
+
+        if db_handler is not None:
+            count = f"{db_handler.store_download(index, url)} "
+        else:
+            count = ""
+        with print_lock:
+            print(f"{count}{url}")
 
     except requests.exceptions.Timeout:
-        print(f"Timeout when download: {title}")
-        return None, None
+        with print_lock:
+            print(f"Timeout when download: {url}")
+
+
+def download(bound, shared):
+    begin, end = bound
+    pool = ThreadPool(shared["num_thread"], fetch, shared["urls"][begin: end], shared)
+    pool.join()
 
 
 def crawl(max_storage):
-    # view paintings as grids
+    print("Fetching urls")
     max_page = max_storage // 20
     grids_soup = parse_url(f"https://artuk.org/discover/artworks/view_as/grid/page/{max_page}", timeout=1000)
-    all_li = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
+    lis = grids_soup.find("ul", class_="listing-grid listing masonary-grid").find_all("li")
+    print()
 
-    # database handler
-    db_handler = PaintingDatabaseHandler()
+    print("Parsing urls")
+    shared = {"data_lock" : Manager().Lock(),
+              "print_lock": Manager().Lock(),
+              "lis"       : lis,
+              "urls"      : Manager().list(),
+              "db_handler": None,
+              "target_dir": temp_dir,
+              "num_thread": 12}
+    num_proc = cpu_count()
+    pool = ProcessPool(num_proc, parse, ProcessPool.split_index(lis, num_proc), shared)
+    pool.join()
+    print()
 
-    try:
-        # download paintings
-        will_fetch = []
-        pool = Manager().Pool()
-        count = Manager().Value("d", 0)
+    print("Download paintings")
+    pool = ProcessPool(num_proc, download, ProcessPool.split_index(shared["urls"], num_proc), shared)
+    pool.join()
+    print()
 
-        for li in all_li:
-            url = li.find("a")["href"]
-            title_info = li.find("span", class_="title")
-
-            # remove the date info if necessary
-            if title_info.find("span", class_="date"):
-                title_info.find("span", class_="date").extract()
-
-            # truncate title if necessary (max length of file name is 255)
-            title = url[url.find("artworks/") + 9: url.rfind("/view_as")]
-            if len(title) > 251:
-                print("Title is too long, will be truncated: " + title)
-                title = title[:251]
-
-            # only download those haven't been seen before
-            if db_handler.did_not_download(title):
-                will_fetch.append((url, title, count))
-            else:
-                print(f"Already exists: {title}")
-
-        for title, url in pool.map(fetch_image, will_fetch):
-            if title and url:
-                db_handler.store_painting_info(url)
-        print("Download finished.")
-
-    except Exception as e:
-        print(f"Error in download: {e}")
-
-    finally:
-        db_handler.commit()
-        db_handler.close()
 
 if __name__ == "__main__":
     crawl(4000)
