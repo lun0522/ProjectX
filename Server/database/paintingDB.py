@@ -2,8 +2,6 @@ import json
 
 from .baseDB import DatabaseHandler
 
-__all__ = ["PaintingDatabaseHandler"]
-
 """
 mysql> use paintings
 

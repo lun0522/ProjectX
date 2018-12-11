@@ -2,8 +2,6 @@ import json
 
 from .baseDB import DatabaseHandler
 
-__all__ = ["ModelDatabaseHandler"]
-
 """
 mysql> use model
 
@@ -17,6 +15,7 @@ mysql> DESCRIBE Total;
 | points_posed | json    | NO   |     | NULL    |                |
 +--------------+---------+------+-----+---------+----------------+
 """
+
 
 class ModelDatabaseHandler(DatabaseHandler):
 

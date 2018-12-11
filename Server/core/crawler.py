@@ -1,11 +1,14 @@
 from multiprocessing import cpu_count, Manager
 import os
+import shutil
+import time
 
 from bs4 import BeautifulSoup
+import matplotlib.pyplot as plt
 import requests
 
 from database import PaintingDatabaseHandler, temp_dir
-from pool import ProcessPool, ThreadPool
+from core.pool import ProcessPool, ThreadPool
 
 _headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) "
                           "AppleWebKit/537.1 (KHTML, like Gecko) "
@@ -54,9 +57,10 @@ def fetch(url, shared):
         with print_lock:
             print(f"{count}{url}")
 
-    except requests.exceptions.Timeout:
+    except Exception as e:
         with print_lock:
-            print(f"Timeout when download: {url}")
+            print(f"Failed to download: {url}")
+            print(str(e))
 
 
 def download(bound, shared):
@@ -65,7 +69,7 @@ def download(bound, shared):
     pool.join()
 
 
-def crawl(max_storage):
+def main(max_storage, target_dir, num_thread):
     print("Fetching urls")
     max_page = max_storage // 20
     grids_soup = parse_url(f"https://artuk.org/discover/artworks/view_as/grid/page/{max_page}", timeout=1000)
@@ -75,11 +79,11 @@ def crawl(max_storage):
     print("Parsing urls")
     shared = {"data_lock" : Manager().Lock(),
               "print_lock": Manager().Lock(),
-              "lis"       : lis,
               "urls"      : Manager().list(),
+              "lis"       : lis,
               "db_handler": None,
-              "target_dir": temp_dir,
-              "num_thread": 12}
+              "target_dir": target_dir,
+              "num_thread": num_thread}
     num_proc = cpu_count()
     pool = ProcessPool(num_proc, parse, ProcessPool.split_index(lis, num_proc), shared)
     pool.join()
@@ -91,5 +95,28 @@ def crawl(max_storage):
     print()
 
 
+def test_num_thread(num_threads):
+    elapsed_time = []
+    if not os.path.exists(temp_dir):
+        os.mkdir(temp_dir)
+
+    for num_thread in num_threads:
+        shutil.rmtree(temp_dir)
+        os.mkdir(temp_dir)
+        print(f"Testing {num_thread} threads\n")
+        start = time.time()
+        main(500, temp_dir, num_thread)
+        elapsed_time.append(time.time() - start)
+        print(f"Finished testing {num_thread} threads\n")
+
+    fig, ax = plt.subplots()
+    ax.plot(num_threads, elapsed_time)
+    ax.set_xlabel("Number of Threads")
+    ax.set_ylabel("Elapsed Time of Downloading 1000 Images")
+    save_path = os.path.join(temp_dir, "benchmark.png")
+    plt.savefig(save_path)
+    print(f"Benchmark saved to {save_path}")
+
+
 if __name__ == "__main__":
-    crawl(4000)
+    test_num_thread([1, 2, 4, 8, 16])
